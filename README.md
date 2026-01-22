@@ -15,16 +15,13 @@ Chrome extension that detects AI-generated posts on LinkedIn using local LLM via
 - 🟡 **Uncertain** - Mixed signals
 - 🔴 **Likely AI** / **AI** - Synthetic patterns detected
 
-## Files
+## Structure
 
 ```
-manifest.json   Config
-background.js   API proxy
-content.js      DOM observer
-detector.js     LLM calls
-prompt.js       System prompt
-popup.html/js   Settings UI
-styles.css      Verdict colors
+├── src/           # Extension source
+├── icons/         # Extension icons
+├── manifest.json  # Chrome config
+└── CLAUDE.md      # Dev guide
 ```
 
 ## License
