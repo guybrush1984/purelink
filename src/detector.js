@@ -1,3 +1,4 @@
+const api = typeof browser !== "undefined" ? browser : chrome;
 const DEFAULT_URL = "http://localhost:11434";
 const DEFAULT_MODEL = "ministral-3:14b-cloud";
 const MAX_TEXT = 2000;
@@ -5,14 +6,14 @@ const MAX_TEXT = 2000;
 let settings = { ollamaUrl: DEFAULT_URL, model: DEFAULT_MODEL };
 
 async function loadSettings() {
-  const saved = await chrome.storage.local.get(["ollamaUrl", "model"]);
+  const saved = await api.storage.local.get(["ollamaUrl", "model"]);
   if (saved.ollamaUrl) settings.ollamaUrl = saved.ollamaUrl;
   if (saved.model) settings.model = saved.model;
 }
 
 loadSettings();
 
-chrome.storage.onChanged.addListener((changes) => {
+api.storage.onChanged.addListener((changes) => {
   if (changes.ollamaUrl) settings.ollamaUrl = changes.ollamaUrl.newValue;
   if (changes.model) settings.model = changes.model.newValue;
 });
@@ -24,7 +25,7 @@ async function detectAIContent(text) {
   const truncated = text.length > MAX_TEXT ? text.substring(0, MAX_TEXT) + "..." : text;
 
   try {
-    const res = await chrome.runtime.sendMessage({
+    const res = await api.runtime.sendMessage({
       type: "OLLAMA_REQUEST",
       url: `${settings.ollamaUrl}/v1/chat/completions`,
       options: {

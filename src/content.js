@@ -1,6 +1,7 @@
 (function () {
   "use strict";
 
+  const api = typeof browser !== "undefined" ? browser : chrome;
   const POST_SELECTOR = ".feed-shared-update-v2";
   const TEXT_SELECTORS = [".feed-shared-text", ".break-words", ".feed-shared-update-v2__description", '[data-test-id="main-feed-activity-card__commentary"]'];
   const MIN_TEXT = 50;
@@ -98,7 +99,7 @@
     initIntersectionObs();
   }
 
-  chrome.runtime.onMessage.addListener((msg, sender, respond) => {
+  api.runtime.onMessage.addListener((msg, sender, respond) => {
     if (msg.type === "TOGGLE_ENABLED") {
       enabled = msg.enabled;
       enabled ? reset() : removeHighlights();
@@ -116,7 +117,7 @@
   });
 
   async function init() {
-    const saved = await chrome.storage.local.get(["enabled"]);
+    const saved = await api.storage.local.get(["enabled"]);
     enabled = saved.enabled !== false;
     setTimeout(() => {
       initMutationObs();
