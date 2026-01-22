@@ -1,0 +1,25 @@
+.ai-analyzed { position: relative !important; }
+
+.ai-verdict-definitely-human { outline: 4px solid #22c55e !important; outline-offset: 2px !important; background-color: rgba(34,197,94,0.05) !important; }
+.ai-verdict-likely-human { outline: 4px solid #86efac !important; outline-offset: 2px !important; background-color: rgba(134,239,172,0.05) !important; }
+.ai-verdict-uncertain { outline: 4px solid #f59e0b !important; outline-offset: 2px !important; background-color: rgba(245,158,11,0.05) !important; }
+.ai-verdict-likely-ai { outline: 4px solid #f87171 !important; outline-offset: 2px !important; background-color: rgba(248,113,113,0.05) !important; }
+.ai-verdict-definitely-ai { outline: 4px solid #dc2626 !important; outline-offset: 2px !important; background-color: rgba(220,38,38,0.05) !important; }
+
+.ai-detected-badge {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  color: white !important;
+  font: bold 11px Arial, sans-serif !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  z-index: 9999 !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+}
+
+.ai-badge-definitely-human { background: #22c55e !important; }
+.ai-badge-likely-human { background: #86efac !important; color: #166534 !important; }
+.ai-badge-uncertain { background: #f59e0b !important; }
+.ai-badge-likely-ai { background: #f87171 !important; }
+.ai-badge-definitely-ai { background: #dc2626 !important; }
