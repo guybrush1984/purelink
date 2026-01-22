@@ -2,6 +2,8 @@
 
 Chrome extension that detects AI-generated posts on LinkedIn using local LLM via Ollama.
 
+![Demo](demo.gif)
+
 ## Setup
 
 1. Install [Ollama](https://ollama.com)
