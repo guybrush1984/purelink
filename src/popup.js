@@ -1,3 +1,4 @@
+const api = typeof browser !== "undefined" ? browser : chrome;
 const DEFAULT_URL = "http://localhost:11434";
 const DEFAULT_MODEL = "ministral-3:14b-cloud";
 
@@ -35,7 +36,7 @@ async function fetchModels() {
   modelSelect.disabled = refreshBtn.disabled = true;
 
   try {
-    const res = await chrome.runtime.sendMessage({ type: "OLLAMA_FETCH_MODELS", url });
+    const res = await api.runtime.sendMessage({ type: "OLLAMA_FETCH_MODELS", url });
     if (res.error) throw new Error(res.error);
 
     const models = res.data.models || [];
@@ -52,7 +53,7 @@ async function fetchModels() {
       });
     }
 
-    const saved = await chrome.storage.local.get(["model"]);
+    const saved = await api.storage.local.get(["model"]);
     modelSelect.value = saved.model || DEFAULT_MODEL;
   } catch (e) {
     modelSelect.innerHTML = '<option value="">-- Connection failed --</option>';
@@ -68,12 +69,12 @@ async function saveSettings() {
     ollamaUrl: urlInput.value || DEFAULT_URL,
     model: modelSelect.value,
   };
-  await chrome.storage.local.set(settings);
+  await api.storage.local.set(settings);
 
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [tab] = await api.tabs.query({ active: true, currentWindow: true });
     if (tab?.url?.includes("linkedin.com")) {
-      await chrome.tabs.sendMessage(tab.id, { type: "SETTINGS_UPDATED", settings });
+      await api.tabs.sendMessage(tab.id, { type: "SETTINGS_UPDATED", settings });
     }
   } catch (e) {}
 
@@ -84,15 +85,15 @@ async function saveSettings() {
 
 async function sendToggle(enabled) {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [tab] = await api.tabs.query({ active: true, currentWindow: true });
     if (tab?.url?.includes("linkedin.com")) {
-      await chrome.tabs.sendMessage(tab.id, { type: "TOGGLE_ENABLED", enabled });
+      await api.tabs.sendMessage(tab.id, { type: "TOGGLE_ENABLED", enabled });
     }
   } catch (e) {}
 }
 
 async function init() {
-  const saved = await chrome.storage.local.get(["enabled", "ollamaUrl", "model"]);
+  const saved = await api.storage.local.get(["enabled", "ollamaUrl", "model"]);
   urlInput.value = saved.ollamaUrl || DEFAULT_URL;
   updateStatus(saved.enabled !== false);
 
@@ -101,7 +102,7 @@ async function init() {
 
   toggle.addEventListener("change", async () => {
     const on = toggle.checked;
-    await chrome.storage.local.set({ enabled: on });
+    await api.storage.local.set({ enabled: on });
     updateStatus(on);
     sendToggle(on);
   });

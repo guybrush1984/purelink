@@ -1,13 +1,27 @@
-const HEADER_RULES = [
-  { id: 1, priority: 1, action: { type: "modifyHeaders", requestHeaders: [{ header: "Origin", operation: "remove" }] }, condition: { urlFilter: "||localhost", resourceTypes: ["xmlhttprequest"] } },
-  { id: 2, priority: 1, action: { type: "modifyHeaders", requestHeaders: [{ header: "Origin", operation: "remove" }] }, condition: { urlFilter: "||127.0.0.1", resourceTypes: ["xmlhttprequest"] } },
-];
+const api = typeof browser !== "undefined" ? browser : chrome;
+const isFirefox = typeof browser !== "undefined";
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: [1, 2], addRules: HEADER_RULES });
-});
+// Chrome: declarativeNetRequest
+if (!isFirefox && api.declarativeNetRequest) {
+  const rules = [
+    { id: 1, priority: 1, action: { type: "modifyHeaders", requestHeaders: [{ header: "Origin", operation: "remove" }] }, condition: { urlFilter: "||localhost", resourceTypes: ["xmlhttprequest"] } },
+    { id: 2, priority: 1, action: { type: "modifyHeaders", requestHeaders: [{ header: "Origin", operation: "remove" }] }, condition: { urlFilter: "||127.0.0.1", resourceTypes: ["xmlhttprequest"] } },
+  ];
+  api.runtime.onInstalled.addListener(() => {
+    api.declarativeNetRequest.updateDynamicRules({ removeRuleIds: [1, 2], addRules: rules });
+  });
+}
 
-chrome.runtime.onMessage.addListener((msg, sender, respond) => {
+// Firefox: webRequest
+if (isFirefox && api.webRequest) {
+  api.webRequest.onBeforeSendHeaders.addListener(
+    (details) => ({ requestHeaders: details.requestHeaders.filter((h) => h.name.toLowerCase() !== "origin") }),
+    { urls: ["*://localhost/*", "*://127.0.0.1/*"] },
+    ["blocking", "requestHeaders"]
+  );
+}
+
+api.runtime.onMessage.addListener((msg, sender, respond) => {
   if (msg.type === "OLLAMA_REQUEST") {
     ollamaRequest(msg.url, msg.options).then(respond);
     return true;

@@ -1,12 +1,12 @@
 # AI Post Detector
 
-Chrome extension detecting AI-generated LinkedIn posts via local Ollama LLM.
+Browser extension detecting AI-generated LinkedIn posts via local Ollama LLM.
 
 ## Structure
 
 ```
 ├── src/
-│   ├── background.js   # Service worker: API proxy, CORS bypass
+│   ├── background.js   # Service worker/script: API proxy, CORS bypass
 │   ├── content.js      # LinkedIn: DOM observation, UI badges
 │   ├── detector.js     # Detection: request building, response parsing
 │   ├── prompt.js       # System prompt constant
@@ -14,9 +14,17 @@ Chrome extension detecting AI-generated LinkedIn posts via local Ollama LLM.
 │   ├── popup.js        # Settings UI logic
 │   └── styles.css      # Verdict colors
 ├── icons/
-├── manifest.json
-├── README.md
+├── manifest.chrome.json
+├── manifest.firefox.json
+├── Makefile
 └── CLAUDE.md
+```
+
+## Build
+
+```bash
+make chrome    # → manifest.json for Chrome
+make firefox   # → manifest.json for Firefox
 ```
 
 ## Data Flow
@@ -24,6 +32,16 @@ Chrome extension detecting AI-generated LinkedIn posts via local Ollama LLM.
 ```
 LinkedIn DOM → content.js → detector.js → background.js → Ollama → verdict → CSS class
 ```
+
+## Browser Compatibility
+
+All JS files use `const api = typeof browser !== "undefined" ? browser : chrome;`
+
+| Feature | Chrome | Firefox |
+|---------|--------|---------|
+| Manifest | v3 | v2 |
+| Background | Service worker | Script |
+| Header strip | declarativeNetRequest | webRequest |
 
 ## Coding Rules
 
@@ -36,17 +54,13 @@ LinkedIn DOM → content.js → detector.js → background.js → Ollama → ver
 - `const` by default, `let` only when reassigning
 - Arrow functions for callbacks
 - Early returns over nested conditionals
+- Use `api` variable for browser compatibility
 
 ### Naming
 - Files: lowercase with dashes
 - Functions: camelCase, verb-first
 - Constants: UPPER_SNAKE_CASE
 - CSS classes: kebab-case with `ai-` prefix
-
-### Chrome Extension
-- Content scripts can't cross-origin fetch → use background
-- Message passing: `{type: "ACTION_NAME", ...payload}`
-- Body as object in sendMessage, stringify in background
 
 ## Verdicts
 
