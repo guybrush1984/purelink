@@ -1,6 +1,6 @@
 const api = typeof browser !== "undefined" ? browser : chrome;
 const DEFAULT_URL = "http://localhost:11434";
-const DEFAULT_MODEL = "ministral-3:14b-cloud";
+const DEFAULT_MODEL = "gemma4:31b-cloud";
 
 const $ = (id) => document.getElementById(id);
 const toggle = $("enableToggle");

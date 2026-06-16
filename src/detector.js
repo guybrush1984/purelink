@@ -1,6 +1,6 @@
 const api = typeof browser !== "undefined" ? browser : chrome;
 const DEFAULT_URL = "http://localhost:11434";
-const DEFAULT_MODEL = "ministral-3:14b-cloud";
+const DEFAULT_MODEL = "gemma4:31b-cloud";
 const MAX_TEXT = 2000;
 
 let settings = { ollamaUrl: DEFAULT_URL, model: DEFAULT_MODEL };
@@ -23,6 +23,11 @@ async function detectAIContent(text) {
   if (!window.DETECTION_SYSTEM_PROMPT) return { error: "System prompt not loaded" };
 
   const truncated = text.length > MAX_TEXT ? text.substring(0, MAX_TEXT) + "..." : text;
+  // LLMs can't perceive these characters reliably; flag them in text instead
+  const machineChars = truncated.match(/[\u2011\u202F]/g);
+  const userContent = machineChars
+    ? `${truncated}\n\n[scanner: contains ${machineChars.length}x typographic Unicode (non-breaking hyphen/narrow space) rarely typed by humans]`
+    : truncated;
 
   try {
     const res = await api.runtime.sendMessage({
@@ -35,10 +40,11 @@ async function detectAIContent(text) {
           model: settings.model,
           messages: [
             { role: "system", content: window.DETECTION_SYSTEM_PROMPT },
-            { role: "user", content: truncated },
+            { role: "user", content: userContent },
           ],
           temperature: 0.1,
           max_tokens: 4096,
+          response_format: { type: "json_object" },
         },
       },
     });

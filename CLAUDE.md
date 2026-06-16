@@ -13,6 +13,11 @@ Browser extension detecting AI-generated LinkedIn posts via local Ollama LLM.
 │   ├── popup.html      # Settings UI markup
 │   ├── popup.js        # Settings UI logic
 │   └── styles.css      # Verdict colors
+├── eval/
+│   ├── fetch-data.js   # Download labeled datasets (HuggingFace, no deps)
+│   ├── gen-ai-posts.js # Generate AI half of eval set via Ollama
+│   ├── run.js          # Run prompt against dataset, report accuracy
+│   └── data/           # JSONL datasets (gitignored)
 ├── icons/
 ├── manifest.chrome.json
 ├── manifest.firefox.json
@@ -26,6 +31,19 @@ Browser extension detecting AI-generated LinkedIn posts via local Ollama LLM.
 make chrome    # → manifest.json for Chrome
 make firefox   # → manifest.json for Firefox
 ```
+
+## Eval
+
+```bash
+node eval/fetch-data.js      # download human LinkedIn posts + AIGTBench proxy
+node eval/gen-ai-posts.js    # generate AI posts (needs Ollama running)
+node eval/run.js --model qwen3.5:9b --limit 100   # measure prompt accuracy
+```
+
+Datasets are `{"text", "label": "human"|"ai", "source"}` JSONL in `eval/data/`.
+Caveats: no public labeled LinkedIn AI dataset exists; human posts are real
+LinkedIn authors (recent ones could be AI-assisted), AI posts are self-generated.
+Run the eval before and after any prompt change.
 
 ## Data Flow
 
