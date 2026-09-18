@@ -9,6 +9,7 @@ const statusText = $("statusText");
 const urlInput = $("ollamaUrl");
 const modelSelect = $("modelSelect");
 const modelError = $("modelError");
+const keyInput = $("ollamaApiKey");
 const refreshBtn = $("refreshModels");
 const saveBtn = $("saveBtn");
 
@@ -16,6 +17,15 @@ function updateStatus(enabled) {
   toggle.checked = enabled;
   statusDot.className = "status-dot " + (enabled ? "active" : "inactive");
   statusText.textContent = enabled ? "Active on LinkedIn" : "Disabled";
+}
+
+// The local daemon exposes cloud models suffixed ("gemma4:31b-cloud"); ollama.com
+// lists them bare ("gemma4:31b"). Without this, switching the server to the cloud
+// leaves the dropdown blank on a perfectly valid saved model.
+function selectModel(want) {
+  const names = [...modelSelect.options].map((o) => o.value);
+  const alt = want.endsWith("-cloud") ? want.slice(0, -6) : want + "-cloud";
+  modelSelect.value = names.includes(want) ? want : names.includes(alt) ? alt : "";
 }
 
 function showError(msg) {
@@ -54,7 +64,7 @@ async function fetchModels() {
     }
 
     const saved = await api.storage.local.get(["model"]);
-    modelSelect.value = saved.model || DEFAULT_MODEL;
+    selectModel(saved.model || DEFAULT_MODEL);
   } catch (e) {
     modelSelect.innerHTML = '<option value="">-- Connection failed --</option>';
     showError(`Cannot connect to ${url}`);
@@ -68,6 +78,7 @@ async function saveSettings() {
     enabled: toggle.checked,
     ollamaUrl: urlInput.value || DEFAULT_URL,
     model: modelSelect.value,
+    ollamaApiKey: keyInput.value.trim(),
   };
   await api.storage.local.set(settings);
 
@@ -93,12 +104,13 @@ async function sendToggle(enabled) {
 }
 
 async function init() {
-  const saved = await api.storage.local.get(["enabled", "ollamaUrl", "model"]);
+  const saved = await api.storage.local.get(["enabled", "ollamaUrl", "model", "ollamaApiKey"]);
   urlInput.value = saved.ollamaUrl || DEFAULT_URL;
+  keyInput.value = saved.ollamaApiKey || "";
   updateStatus(saved.enabled !== false);
 
   await fetchModels();
-  modelSelect.value = saved.model || DEFAULT_MODEL;
+  selectModel(saved.model || DEFAULT_MODEL);
 
   toggle.addEventListener("change", async () => {
     const on = toggle.checked;
