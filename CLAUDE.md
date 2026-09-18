@@ -1,6 +1,8 @@
 # AI Post Detector
 
-Browser extension detecting AI-generated LinkedIn posts via local Ollama LLM.
+Browser extension detecting AI-generated LinkedIn posts. Jev (a cheap decision
+model on OpenRouter) scores every post; only posts it is unsure about go to an
+Ollama LLM.
 
 ## Structure
 
@@ -8,8 +10,9 @@ Browser extension detecting AI-generated LinkedIn posts via local Ollama LLM.
 ├── src/
 │   ├── background.js   # Service worker/script: API proxy, CORS bypass
 │   ├── content.js      # LinkedIn: DOM observation, UI badges
-│   ├── detector.js     # Detection: request building, response parsing
-│   ├── prompt.js       # AI-detection system prompt
+│   ├── detector.js     # Detection: Jev → Ollama routing, score log
+│   ├── prompt.js       # AI-detection system prompt (Ollama)
+│   ├── jev-prompt.js   # Jev questions + routing cut-offs
 │   ├── factcheck-prompt.js # Claim-extraction SOP (fact-check stage 0)
 │   ├── popup.html      # Settings UI markup
 │   ├── popup.js        # Settings UI logic
@@ -18,6 +21,7 @@ Browser extension detecting AI-generated LinkedIn posts via local Ollama LLM.
 │   ├── fetch-data.js   # Download labeled datasets (HuggingFace, no deps)
 │   ├── gen-ai-posts.js # Generate AI half of eval set via Ollama
 │   ├── run.js          # Run prompt against dataset, report accuracy
+│   ├── run-jev.js      # Jev questions + routing against the dataset
 │   ├── factcheck-samples/ # Claim-rich fixtures for the extraction gate
 │   └── data/           # JSONL datasets (gitignored)
 ├── icons/
@@ -42,7 +46,22 @@ make firefox   # → manifest.json for Firefox
 node eval/fetch-data.js      # download human LinkedIn posts + AIGTBench proxy
 node eval/gen-ai-posts.js    # generate AI posts (needs Ollama running)
 node eval/run.js --model qwen3.5:9b --limit 100   # measure prompt accuracy
+OPENROUTER_API_KEY=... node eval/run-jev.js --limit 240 --pollute   # Jev routing vs gemma, same posts
 ```
+
+Jev (`typesafe/jev-1.13`) is not a chat model: `POST openrouter.ai/api/alpha/decisions`
+with `{model, state, questions}` returns a probability per question, no text, and
+there is no system prompt. ~950 tokens, ~340ms and ~$0.00004 per post. Its scores
+jitter slightly between calls (±0.04 on the same text) and move with the chrome
+around a post, so treat cut-offs as ranges. Rules learned the hard way:
+- The `criteria` (what yes/no mean) carry v4.3's false-positive traps; without
+  them false alarms at 90% recall triple.
+- One post per request. Batching posts into one `state` cuts tokens ~30% but
+  drops separation from 0.98 to 0.84.
+- It rejects lone UTF-16 surrogates, so never cut post text mid-pair (LinkedIn's
+  𝗯𝗼𝗹𝗱 letters are astral).
+- Re-check the cut-offs against the popup's logged scores ("Copy log"): the
+  target is ~10% of the feed reaching Ollama.
 
 Datasets are `{"text", "label": "human"|"ai", "source"}` JSONL in `eval/data/`.
 Caveats: no public labeled LinkedIn AI dataset exists; human posts are real
@@ -59,7 +78,12 @@ badge). Re-run its probes before relying on them — LinkedIn ships new feeds of
 
 ```
 Detection (automatic, on scroll):
-LinkedIn DOM → content.js → detector.js → background.js → Ollama → verdict → CSS class
+LinkedIn DOM → content.js → detector.js → background.js → Jev (OpenRouter)
+  slop < JEV_LOW   → LIKELY_HUMAN  (Jev decides)
+  slop ≥ JEV_HIGH  → LIKELY_AI     (Jev decides)
+  in between       → Ollama + v4.3 prompt → verdict
+  no key / Jev error → Ollama for every post, as before
+→ verdict + slop meter on the badge → CSS class; scores (no text) → storage jevLog
 
 Fact-check (on demand, per post):
 click → content.js opens a port → background.js → factcheck.js

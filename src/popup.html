@@ -92,7 +92,13 @@
       transform: translateX(20px);
     }
 
-    input[type="text"], select {
+    .hint {
+      color: #888;
+      font-size: 10px;
+      margin-top: 4px;
+    }
+
+    input[type="text"], input[type="password"], input[type="number"], select {
       width: 100%;
       padding: 8px 10px;
       border: 1px solid #ddd;
@@ -231,6 +237,28 @@
     </div>
   </div>
 
+  <div class="section">
+    <div class="section-title">Jev slop meter (OpenRouter)</div>
+    <div class="input-group">
+      <input type="password" id="openrouterApiKey" placeholder="OpenRouter API key — empty = Ollama only" autocomplete="off">
+    </div>
+    <div class="input-row" style="margin-top:6px">
+      <div class="input-group">
+        <span class="toggle-label" style="font-size:11px">Human below</span>
+        <input type="number" id="jevLow" min="0" max="1" step="0.01">
+      </div>
+      <div class="input-group">
+        <span class="toggle-label" style="font-size:11px">AI from</span>
+        <input type="number" id="jevHigh" min="0" max="1" step="0.01">
+      </div>
+    </div>
+    <div class="hint">Jev scores every post (~$0.00003); only scores between the two go to Ollama.</div>
+    <div class="input-row" style="margin-top:6px;align-items:center">
+      <div class="input-group hint" id="jevStats" style="margin-top:0">No posts scored yet</div>
+      <button class="btn btn-small" id="copyLog">Copy log</button>
+    </div>
+  </div>
+
   <button class="btn" id="saveBtn">Save Settings</button>
 
   <div class="status">
@@ -238,6 +266,7 @@
     <span id="statusText">Checking...</span>
   </div>
 
+  <script src="jev-prompt.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

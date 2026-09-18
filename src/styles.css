@@ -41,6 +41,18 @@
 .ai-badge-likely-ai { background: #f87171 !important; }
 .ai-badge-definitely-ai { background: #dc2626 !important; }
 
+/* Slop meter: Jev's AI probability as a bar along the badge's bottom edge */
+.ai-slop-pct { font-weight: normal !important; opacity: 0.9 !important; }
+.ai-slop-meter {
+  display: block !important;
+  height: 3px !important;
+  margin: 3px -8px -4px !important;
+  background: rgba(0,0,0,0.18) !important;
+  border-radius: 0 0 4px 4px !important;
+  overflow: hidden !important;
+}
+.ai-slop-fill { display: block !important; height: 100% !important; background: currentColor !important; }
+
 /* ---- Fact-check ---- */
 
 .ai-fc-btn {

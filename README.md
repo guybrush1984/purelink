@@ -19,6 +19,13 @@ leaves your machine, and the free tier has usage caps.
 - **Local models** (private, ~8GB+ VRAM): `ollama pull ministral-3:14b` or
   `qwen3.5:9b`, then pick it in the popup. Nothing leaves your machine.
 
+**Optional, recommended: Jev slop meter.** Paste an [OpenRouter](https://openrouter.ai)
+API key in the popup. Every post is then first scored by Jev, TypeSafe's decision
+model (~$0.00004 a post, ~0.3 s), and only the ~10% it is unsure about go to your
+Ollama model. Each badge shows Jev's score as a percentage with a meter bar.
+Post text goes to OpenRouter and TypeSafe (their listed policy: no training, no
+prompt retention). Leave the key empty to use Ollama for every post, as before.
+
 The **fact-checker needs an API key either way** — web search and web fetch live
 only on ollama.com and the local daemon does not serve them. It is a separate
 credential from `ollama signin`.
@@ -40,6 +47,11 @@ Open LinkedIn and scroll.
 - 🟢 **Human** / **Likely Human** - Authentic content
 - 🟡 **Uncertain** - Mixed signals
 - 🔴 **Likely AI** / **AI** - Synthetic patterns detected
+
+With a Jev key, badges also read like `Likely AI · 78%`: Jev's probability that
+the post is AI-written. Hover a badge to see whether Jev or Ollama decided it. The
+popup shows what share of your feed reached Ollama, and the two cut-offs to widen
+or narrow that band.
 
 ## Fact-check
 

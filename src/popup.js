@@ -12,6 +12,11 @@ const modelError = $("modelError");
 const keyInput = $("ollamaApiKey");
 const refreshBtn = $("refreshModels");
 const saveBtn = $("saveBtn");
+const openrouterInput = $("openrouterApiKey");
+const jevLowInput = $("jevLow");
+const jevHighInput = $("jevHigh");
+const jevStats = $("jevStats");
+const copyLogBtn = $("copyLog");
 
 function updateStatus(enabled) {
   toggle.checked = enabled;
@@ -73,14 +78,45 @@ async function fetchModels() {
   }
 }
 
+// Share of Jev-scored posts that reached Ollama under the current cut-offs,
+// the number to watch against the ~10% budget.
+async function showJevStats() {
+  const { jevLog = [] } = await api.storage.local.get(["jevLog"]);
+  const scored = jevLog.filter((e) => e.p != null);
+  if (!scored.length) return;
+  const low = parseFloat(jevLowInput.value);
+  const high = parseFloat(jevHighInput.value);
+  const mid = scored.filter((e) => e.p >= low && e.p < high).length;
+  jevStats.textContent = `${scored.length} posts scored · ${Math.round((mid / scored.length) * 100)}% go to Ollama`;
+}
+
+async function copyLog() {
+  const { jevLog = [] } = await api.storage.local.get(["jevLog"]);
+  await navigator.clipboard.writeText(JSON.stringify(jevLog));
+  copyLogBtn.textContent = "Copied";
+  setTimeout(() => (copyLogBtn.textContent = "Copy log"), 1500);
+}
+
+function readCutoffs() {
+  const low = parseFloat(jevLowInput.value);
+  const high = parseFloat(jevHighInput.value);
+  const valid = low >= 0 && high <= 1 && low <= high;
+  return valid ? { jevLow: low, jevHigh: high } : { jevLow: window.JEV_LOW, jevHigh: window.JEV_HIGH };
+}
+
 async function saveSettings() {
   const settings = {
     enabled: toggle.checked,
     ollamaUrl: urlInput.value || DEFAULT_URL,
     model: modelSelect.value,
     ollamaApiKey: keyInput.value.trim(),
+    openrouterApiKey: openrouterInput.value.trim(),
+    ...readCutoffs(),
   };
   await api.storage.local.set(settings);
+  jevLowInput.value = settings.jevLow;
+  jevHighInput.value = settings.jevHigh;
+  showJevStats();
 
   try {
     const [tab] = await api.tabs.query({ active: true, currentWindow: true });
@@ -104,9 +140,13 @@ async function sendToggle(enabled) {
 }
 
 async function init() {
-  const saved = await api.storage.local.get(["enabled", "ollamaUrl", "model", "ollamaApiKey"]);
+  const saved = await api.storage.local.get(["enabled", "ollamaUrl", "model", "ollamaApiKey", "openrouterApiKey", "jevLow", "jevHigh"]);
   urlInput.value = saved.ollamaUrl || DEFAULT_URL;
   keyInput.value = saved.ollamaApiKey || "";
+  openrouterInput.value = saved.openrouterApiKey || "";
+  jevLowInput.value = saved.jevLow ?? window.JEV_LOW;
+  jevHighInput.value = saved.jevHigh ?? window.JEV_HIGH;
+  showJevStats();
   updateStatus(saved.enabled !== false);
 
   await fetchModels();
@@ -121,6 +161,9 @@ async function init() {
 
   refreshBtn.addEventListener("click", fetchModels);
   saveBtn.addEventListener("click", saveSettings);
+  copyLogBtn.addEventListener("click", copyLog);
+  jevLowInput.addEventListener("input", showJevStats);
+  jevHighInput.addEventListener("input", showJevStats);
   urlInput.addEventListener("blur", fetchModels);
 }
 

@@ -378,7 +378,17 @@
     const badge = document.createElement("div");
     badge.className = "ai-detected-badge ai-badge-" + slug;
     badge.textContent = BADGE_LABELS[result.verdict] || result.verdict;
-    if (result.reason) badge.title = result.reason;
+    badge.title = [result.reason, result.via && `decided by ${result.via === "jev" ? "Jev" : "Ollama"}`].filter(Boolean).join(" · ");
+    // Slop meter: Jev's probability that the post is AI-written, shown on every
+    // post Jev scored, including the ones it handed to Ollama.
+    if (result.slop != null) {
+      const pct = Math.round(result.slop * 100);
+      badge.append(el("ai-slop-pct", ` · ${pct}%`, "span"));
+      const meter = el("ai-slop-meter", undefined, "span");
+      meter.append(el("ai-slop-fill", undefined, "span"));
+      meter.firstChild.style.width = pct + "%";
+      badge.append(meter);
+    }
     post.appendChild(badge);
   }
 

@@ -1,5 +1,6 @@
 const api = typeof browser !== "undefined" ? browser : chrome;
 const isFirefox = typeof browser !== "undefined";
+const JEV_URL = "https://openrouter.ai/api/alpha/decisions";
 
 // Chrome MV3 service worker loads these itself; Firefox MV2 lists them in the
 // manifest's background.scripts, where importScripts does not exist.
@@ -69,7 +70,29 @@ api.runtime.onMessage.addListener((msg, sender, respond) => {
     fetchModels(msg.url).then(respond);
     return true;
   }
+  if (msg.type === "JEV_REQUEST") {
+    jevRequest(msg.body).then(respond);
+    return true;
+  }
 });
+
+// Jev answers typed questions with probabilities on OpenRouter's Decisions
+// route, not chat completions. Callers treat any error as "ask Ollama instead".
+async function jevRequest(body) {
+  try {
+    const { openrouterApiKey } = await api.storage.local.get(["openrouterApiKey"]);
+    if (!openrouterApiKey) return { error: "No OpenRouter API key" };
+    const res = await fetch(JEV_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${openrouterApiKey}` },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return { error: `Jev error: ${res.status}` };
+    return { data: await res.json() };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
 
 async function ollamaRequest(url, options) {
   try {
