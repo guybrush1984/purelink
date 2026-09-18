@@ -2,3 +2,4 @@
 logs*.txt
 .DS_Store
 manifest.json
+eval/data/

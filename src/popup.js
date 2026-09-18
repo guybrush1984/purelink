@@ -1,6 +1,6 @@
 const api = typeof browser !== "undefined" ? browser : chrome;
 const DEFAULT_URL = "http://localhost:11434";
-const DEFAULT_MODEL = "ministral-3:14b-cloud";
+const DEFAULT_MODEL = "gemma4:31b-cloud";
 
 const $ = (id) => document.getElementById(id);
 const toggle = $("enableToggle");
@@ -9,13 +9,28 @@ const statusText = $("statusText");
 const urlInput = $("ollamaUrl");
 const modelSelect = $("modelSelect");
 const modelError = $("modelError");
+const keyInput = $("ollamaApiKey");
 const refreshBtn = $("refreshModels");
 const saveBtn = $("saveBtn");
+const openrouterInput = $("openrouterApiKey");
+const jevLowInput = $("jevLow");
+const jevHighInput = $("jevHigh");
+const jevStats = $("jevStats");
+const copyLogBtn = $("copyLog");
 
 function updateStatus(enabled) {
   toggle.checked = enabled;
   statusDot.className = "status-dot " + (enabled ? "active" : "inactive");
   statusText.textContent = enabled ? "Active on LinkedIn" : "Disabled";
+}
+
+// The local daemon exposes cloud models suffixed ("gemma4:31b-cloud"); ollama.com
+// lists them bare ("gemma4:31b"). Without this, switching the server to the cloud
+// leaves the dropdown blank on a perfectly valid saved model.
+function selectModel(want) {
+  const names = [...modelSelect.options].map((o) => o.value);
+  const alt = want.endsWith("-cloud") ? want.slice(0, -6) : want + "-cloud";
+  modelSelect.value = names.includes(want) ? want : names.includes(alt) ? alt : "";
 }
 
 function showError(msg) {
@@ -54,7 +69,7 @@ async function fetchModels() {
     }
 
     const saved = await api.storage.local.get(["model"]);
-    modelSelect.value = saved.model || DEFAULT_MODEL;
+    selectModel(saved.model || DEFAULT_MODEL);
   } catch (e) {
     modelSelect.innerHTML = '<option value="">-- Connection failed --</option>';
     showError(`Cannot connect to ${url}`);
@@ -63,13 +78,45 @@ async function fetchModels() {
   }
 }
 
+// Share of Jev-scored posts that reached Ollama under the current cut-offs,
+// the number to watch against the ~10% budget.
+async function showJevStats() {
+  const { jevLog = [] } = await api.storage.local.get(["jevLog"]);
+  const scored = jevLog.filter((e) => e.p != null);
+  if (!scored.length) return;
+  const low = parseFloat(jevLowInput.value);
+  const high = parseFloat(jevHighInput.value);
+  const mid = scored.filter((e) => e.p >= low && e.p < high).length;
+  jevStats.textContent = `${scored.length} posts scored · ${Math.round((mid / scored.length) * 100)}% go to Ollama`;
+}
+
+async function copyLog() {
+  const { jevLog = [] } = await api.storage.local.get(["jevLog"]);
+  await navigator.clipboard.writeText(JSON.stringify(jevLog));
+  copyLogBtn.textContent = "Copied";
+  setTimeout(() => (copyLogBtn.textContent = "Copy log"), 1500);
+}
+
+function readCutoffs() {
+  const low = parseFloat(jevLowInput.value);
+  const high = parseFloat(jevHighInput.value);
+  const valid = low >= 0 && high <= 1 && low <= high;
+  return valid ? { jevLow: low, jevHigh: high } : { jevLow: window.JEV_LOW, jevHigh: window.JEV_HIGH };
+}
+
 async function saveSettings() {
   const settings = {
     enabled: toggle.checked,
     ollamaUrl: urlInput.value || DEFAULT_URL,
     model: modelSelect.value,
+    ollamaApiKey: keyInput.value.trim(),
+    openrouterApiKey: openrouterInput.value.trim(),
+    ...readCutoffs(),
   };
   await api.storage.local.set(settings);
+  jevLowInput.value = settings.jevLow;
+  jevHighInput.value = settings.jevHigh;
+  showJevStats();
 
   try {
     const [tab] = await api.tabs.query({ active: true, currentWindow: true });
@@ -93,12 +140,17 @@ async function sendToggle(enabled) {
 }
 
 async function init() {
-  const saved = await api.storage.local.get(["enabled", "ollamaUrl", "model"]);
+  const saved = await api.storage.local.get(["enabled", "ollamaUrl", "model", "ollamaApiKey", "openrouterApiKey", "jevLow", "jevHigh"]);
   urlInput.value = saved.ollamaUrl || DEFAULT_URL;
+  keyInput.value = saved.ollamaApiKey || "";
+  openrouterInput.value = saved.openrouterApiKey || "";
+  jevLowInput.value = saved.jevLow ?? window.JEV_LOW;
+  jevHighInput.value = saved.jevHigh ?? window.JEV_HIGH;
+  showJevStats();
   updateStatus(saved.enabled !== false);
 
   await fetchModels();
-  modelSelect.value = saved.model || DEFAULT_MODEL;
+  selectModel(saved.model || DEFAULT_MODEL);
 
   toggle.addEventListener("change", async () => {
     const on = toggle.checked;
@@ -109,6 +161,9 @@ async function init() {
 
   refreshBtn.addEventListener("click", fetchModels);
   saveBtn.addEventListener("click", saveSettings);
+  copyLogBtn.addEventListener("click", copyLog);
+  jevLowInput.addEventListener("input", showJevStats);
+  jevHighInput.addEventListener("input", showJevStats);
   urlInput.addEventListener("blur", fetchModels);
 }
 

@@ -1,5 +1,22 @@
 .ai-analyzed { position: relative !important; }
 
+.ai-pending {
+  position: relative !important;
+  outline: 3px dashed #94a3b8 !important;
+  outline-offset: 2px !important;
+}
+
+@keyframes ai-pending-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.ai-badge-pending {
+  background: #64748b !important;
+  cursor: progress !important;
+  animation: ai-pending-pulse 1.2s ease-in-out infinite !important;
+}
+
 .ai-verdict-definitely-human { outline: 4px solid #22c55e !important; outline-offset: 2px !important; background-color: rgba(34,197,94,0.05) !important; }
 .ai-verdict-likely-human { outline: 4px solid #86efac !important; outline-offset: 2px !important; background-color: rgba(134,239,172,0.05) !important; }
 .ai-verdict-uncertain { outline: 4px solid #f59e0b !important; outline-offset: 2px !important; background-color: rgba(245,158,11,0.05) !important; }
@@ -23,3 +40,121 @@
 .ai-badge-uncertain { background: #f59e0b !important; }
 .ai-badge-likely-ai { background: #f87171 !important; }
 .ai-badge-definitely-ai { background: #dc2626 !important; }
+
+/* Slop meter: Jev's AI probability as a bar along the badge's bottom edge */
+.ai-slop-pct { font-weight: normal !important; opacity: 0.9 !important; }
+.ai-slop-meter {
+  display: block !important;
+  height: 3px !important;
+  margin: 3px -8px -4px !important;
+  background: rgba(0,0,0,0.18) !important;
+  border-radius: 0 0 4px 4px !important;
+  overflow: hidden !important;
+}
+.ai-slop-fill { display: block !important; height: 100% !important; background: currentColor !important; }
+
+/* ---- Fact-check ---- */
+
+.ai-fc-btn {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  transform: translateY(26px) !important;
+  background: #1e293b !important;
+  color: #fff !important;
+  font: bold 11px Arial, sans-serif !important;
+  border: 0 !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  z-index: 9999 !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+}
+.ai-fc-btn:disabled { opacity: 0.5 !important; cursor: progress !important; }
+
+/* The claim, highlighted where it sits in the post */
+.ai-fc-mark {
+  background: none !important;
+  color: inherit !important;
+  padding: 1px 0 !important;
+  border-radius: 2px !important;
+  box-decoration-break: clone !important;
+  -webkit-box-decoration-break: clone !important;
+}
+.ai-fc-mark-supported { background: rgba(22,163,74,0.20) !important; box-shadow: 0 1px 0 #16a34a !important; }
+.ai-fc-mark-unverifiable { background: rgba(245,158,11,0.22) !important; box-shadow: 0 1px 0 #f59e0b !important; }
+.ai-fc-mark-contradicted { background: rgba(220,38,38,0.20) !important; box-shadow: 0 1px 0 #dc2626 !important; }
+
+/* Evidence, sitting next to the claim */
+.ai-fc-pin {
+  display: inline-block !important;
+  margin-left: 5px !important;
+  padding: 0 6px !important;
+  border-radius: 9px !important;
+  font: 700 10px/16px ui-monospace, SFMono-Regular, Menlo, monospace !important;
+  color: #fff !important;
+  cursor: pointer !important;
+  vertical-align: 1px !important;
+  white-space: nowrap !important;
+  user-select: none !important;
+}
+.ai-fc-pin-supported { background: #16a34a !important; }
+.ai-fc-pin-unverifiable { background: #d97706 !important; }
+.ai-fc-pin-contradicted { background: #dc2626 !important; }
+
+.ai-fc-card {
+  display: block !important;
+  margin: 5px 0 7px !important;
+  padding: 7px 9px !important;
+  border-left: 3px solid #cbd5e1 !important;
+  background: #f8fafc !important;
+  border-radius: 0 4px 4px 0 !important;
+  font: 12px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif !important;
+  color: #0f172a !important;
+  white-space: normal !important;
+}
+/* display:block !important would otherwise beat the UA [hidden] rule */
+.ai-fc-card[hidden] { display: none !important; }
+.ai-fc-card-supported { border-left-color: #16a34a !important; }
+.ai-fc-card-unverifiable { border-left-color: #d97706 !important; }
+.ai-fc-card-contradicted { border-left-color: #dc2626 !important; }
+.ai-fc-cv { font: 700 10px Arial, sans-serif !important; letter-spacing: 0.04em !important; margin-right: 6px !important; }
+.ai-fc-card-supported .ai-fc-cv { color: #16a34a !important; }
+.ai-fc-card-unverifiable .ai-fc-cv { color: #d97706 !important; }
+.ai-fc-card-contradicted .ai-fc-cv { color: #dc2626 !important; }
+.ai-fc-creason { color: #334155 !important; }
+.ai-fc-cquote { display: block !important; margin-top: 4px !important; color: #475569 !important; font-style: italic !important; }
+.ai-fc-ccite { display: block !important; margin-top: 3px !important; font-size: 11px !important; color: #7c3aed !important; word-break: break-all !important; }
+
+/* Compact progress bar; the trace is for debugging and stays folded away */
+.ai-fc-panel {
+  margin: 8px !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+  background: #f8fafc !important;
+  font: 12px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif !important;
+  color: #0f172a !important;
+  overflow: hidden !important;
+}
+.ai-fc-bar { display: flex !important; align-items: center !important; gap: 8px !important; padding: 5px 9px !important; background: #1e293b !important; color: #fff !important; }
+.ai-fc-title { font: 700 10px Arial, sans-serif !important; letter-spacing: 0.05em !important; text-transform: uppercase !important; }
+.ai-fc-status { flex: 1 !important; color: #cbd5e1 !important; font-size: 11px !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+.ai-fc-status.ai-fc-bad { color: #fca5a5 !important; }
+.ai-fc-toggle { background: #334155 !important; border: 0 !important; color: #cbd5e1 !important; font: 10px Arial, sans-serif !important; padding: 2px 7px !important; border-radius: 3px !important; cursor: pointer !important; }
+.ai-fc-close { background: none !important; border: 0 !important; color: #fff !important; font-size: 17px !important; line-height: 1 !important; cursor: pointer !important; padding: 0 2px !important; }
+
+.ai-fc-list { padding: 4px 0 !important; }
+.ai-fc-row { padding: 5px 9px !important; border-bottom: 1px solid #e2e8f0 !important; }
+.ai-fc-row:last-child { border-bottom: 0 !important; }
+.ai-fc-rowhead { color: #0f172a !important; margin-bottom: 2px !important; }
+.ai-fc-trace { font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace !important; color: #64748b !important; min-width: 0 !important; }
+.ai-fc-line { max-width: 100% !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+.ai-fc-url { color: #7c3aed !important; }
+.ai-fc-bad { color: #b91c1c !important; }
+.ai-fc-rejects { background: #f1f5f9 !important; }
+.ai-fc-rejhead { font: 700 10px Arial, sans-serif !important; text-transform: uppercase !important; letter-spacing: 0.04em !important; color: #64748b !important; margin-bottom: 3px !important; }
+.ai-fc-rej { display: flex !important; gap: 6px !important; align-items: baseline !important; margin-bottom: 2px !important; }
+.ai-fc-code { flex: none !important; font: 700 10px/16px ui-monospace, SFMono-Regular, Menlo, monospace !important; color: #fff !important; background: #94a3b8 !important; border-radius: 3px !important; padding: 0 5px !important; }
+.ai-fc-rejtext { color: #64748b !important; font-size: 11px !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+.ai-fc-mark-pending { background: rgba(100,116,139,0.16) !important; box-shadow: 0 1px 0 #94a3b8 !important; }
+.ai-fc-pin-pending { background: #64748b !important; cursor: progress !important; }
