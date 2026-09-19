@@ -41,8 +41,10 @@
 .ai-badge-likely-ai { background: #f87171 !important; }
 .ai-badge-definitely-ai { background: #dc2626 !important; }
 
-/* Slop meter: Jev's AI probability as a bar along the badge's bottom edge */
-.ai-slop-pct { font-weight: normal !important; opacity: 0.9 !important; }
+.ai-badge-nokey { background: #64748b !important; }
+.ai-detected-badge[class*="ai-badge-"]:not(.ai-badge-pending):not(.ai-badge-nokey) { cursor: pointer !important; }
+
+/* Slop meter: the weighted AI score as a bar along the badge's bottom edge */
 .ai-slop-meter {
   display: block !important;
   height: 3px !important;
@@ -52,6 +54,34 @@
   overflow: hidden !important;
 }
 .ai-slop-fill { display: block !important; height: 100% !important; background: currentColor !important; }
+
+/* Jev's answers, opened by clicking the badge; below the Fact-check button */
+.ai-jev-panel {
+  position: absolute !important;
+  top: 62px !important;
+  right: 8px !important;
+  width: 330px !important;
+  max-width: calc(100% - 16px) !important;
+  z-index: 10000 !important;
+  padding: 8px 10px !important;
+  background: #fff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+  font: 11px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif !important;
+  color: #0f172a !important;
+}
+.ai-jev-head { font-weight: 700 !important; font-size: 12px !important; }
+.ai-jev-sub { color: #64748b !important; margin-bottom: 6px !important; }
+.ai-jev-row { display: flex !important; align-items: center !important; gap: 6px !important; padding: 2px 0 !important; }
+.ai-jev-label { flex: 1 !important; min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+.ai-jev-bar { flex: none !important; width: 60px !important; height: 6px !important; background: #e2e8f0 !important; border-radius: 3px !important; overflow: hidden !important; }
+.ai-jev-fill { display: block !important; height: 100% !important; background: #64748b !important; }
+.ai-jev-val { flex: none !important; width: 32px !important; text-align: right !important; color: #334155 !important; font-variant-numeric: tabular-nums !important; }
+.ai-jev-push { flex: none !important; width: 52px !important; color: #94a3b8 !important; opacity: 0.75 !important; }
+.ai-jev-push-ai { color: #dc2626 !important; }
+.ai-jev-push-human { color: #16a34a !important; }
+.ai-jev-push-strong { opacity: 1 !important; font-weight: 700 !important; }
 
 /* ---- Fact-check ---- */
 

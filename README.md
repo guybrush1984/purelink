@@ -1,35 +1,44 @@
 # AI Post Detector
 
 Browser extension that flags AI-generated posts on LinkedIn. **Jev**, a fast
-decision model, scores every post: the slop meter on each badge. Only the posts
-Jev is unsure about go on to an LLM via Ollama.
+decision model, answers 13 quick questions about every post; the answers,
+weighted, give each post an AI score and a verdict. No LLM runs to detect AI.
 
 ![Demo](demo.gif)
 
 ## How it works
 
-Jev (TypeSafe's `jev-1.13`, via OpenRouter) doesn't write text. It reads a post and
-answers one question with a probability: *was this written by an AI model?* Below
-0.51 the post is marked human, from 0.65 AI, with no LLM call. The ~9% in between
-go to the LLM with the full detection prompt.
+Jev (TypeSafe's `jev-1.13`) doesn't write text. It reads a post and answers typed
+questions with probabilities: *was this written by an AI model?*, *does it use em
+dashes to punch up clauses?*, *does it end on a lesson for everyone?*, *does it show
+typing residue like double spaces?* and nine more. Fixed weights, learned from
+~4,900 labeled posts, combine the 13 answers into one score. Click a badge to see
+every answer and which ones pushed the post towards AI or human.
 
-| On 240 LinkedIn posts, page clutter left in | AI caught | Humans wrongly flagged | Cost / 1,000 posts | Time / post |
-|---|---|---|---|---|
-| Gemma 4 31B alone | 105/120 | 12/120 | $1.20 | 3.89 s |
-| Jev alone (AI from 0.58) | 100/120 | 6/120 | $0.04 | 0.36 s |
-| **Jev, then Gemma 4 31B** | **106/120** | **5/120** | **$0.15** | **0.71 s** |
+Tested once on posts kept out of all the tuning: 630 posts by LinkedIn authors
+from 2021 (before ChatGPT), 300 human answers from HC3, and 415 AI posts from 7
+AI vendors whose models were never used for training, plus AI rewrites of the
+held-out authors' real posts. With LinkedIn's page clutter around each post:
 
-Jev's cost and speed are measured. Gemma's are computed from exact token counts at
-$0.75 / $1.00 per million tokens. The cut-offs were fitted on this test set, so the
-popup shows what share of *your* feed reaches the LLM; aim for about 10%.
+| Verdict | Real authors flagged | AI posts caught |
+|---|---|---|
+| **Likely AI** or **AI** | 0.2% (HC3: 0.3%) | 68%: 98% of plain AI posts, 65% "write like a human", 53% polished rewrites |
+| **Uncertain** or above | 4.1% (HC3: 1.3%) | 78% |
+
+Lightly AI-edited human posts mostly pass as human (14% caught). Very formulaic
+human writers get **Uncertain** more often than the average author. About
+$0.04 per 1,000 posts on OpenRouter, ~0.6 s per post.
 
 ## Setup
 
-**1. Jev (recommended).** Paste an [OpenRouter](https://openrouter.ai) API key in
-the popup. Post text goes to OpenRouter and TypeSafe (their listed policy: no
-training, no prompt retention). Leave it empty and every post goes to the LLM.
+**1. A Jev key.** Paste either key in the popup:
+- an [OpenRouter](https://openrouter.ai) API key (`sk-or-…`), billed per post, or
+- a [TypeSafe](https://typesafe.ai) API key, sent straight to `api.typesafe.ai`.
 
-**2. An LLM via Ollama**, for the posts Jev is unsure about. Pick one:
+Post text goes to OpenRouter and/or TypeSafe (their listed policy: no training,
+no prompt retention). Without a key, posts get an **Add a Jev key** badge.
+
+**2. Ollama, only for the fact-checker.** Pick one:
 
 - **No install, straight to ollama.com.** Create an API key at
   [ollama.com](https://ollama.com), then in the popup set the server to
@@ -59,16 +68,15 @@ Open LinkedIn and scroll.
 
 ## Verdicts
 
-- 🟢 **Human** / **Likely Human** - Authentic content
-- 🟡 **Uncertain** - Mixed signals
-- 🔴 **Likely AI** / **AI** - Synthetic patterns detected
+- 🟢 **Human** / **Likely Human**: reads like a real author's post
+- 🟡 **Uncertain**: more AI-like than 95% of real authors' posts
+- 🔴 **Likely AI** / **AI**: more AI-like than 98% / 99.5% of them
 
-With Jev, badges read like `Likely AI · 78%`: Jev's probability that the post is
-AI-written, with a meter bar. Posts Jev decides alone get **Likely Human** or
-**Likely AI**; the LLM gives its full verdict on the rest. Hover a badge to see
-which one decided. The popup shows the share of your feed that reached the LLM,
-the two cut-offs to widen or narrow that band, and **Copy log** (scores only,
-never post text) for re-fitting them.
+The bar under each badge is the AI score. Click the badge for the score, how it
+compares to real authors' posts, and all 13 answers, sorted by how far each moved
+the post from a typical human post (▲ AI, ▼ human). The popup shows how much of
+*your* feed is flagged, and **Copy log** (answers and scores only, never post
+text) for re-checking the cuts.
 
 ## Fact-check
 
