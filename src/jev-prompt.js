@@ -1,24 +1,29 @@
 /**
- * Jev slop-meter questions (TypeSafe's jev-1.13 decision model, via OpenRouter)
+ * Jev AI-post detector (TypeSafe's jev-1.13 decision model, via OpenRouter or
+ * TypeSafe's own API)
  *
- * Jev is not a chat model. It gets the post as `state` and returns a
- * probability per typed question, no text. `ai_written` routes the post and is
- * the meter shown on the badge; `author` is only logged, for future tuning.
+ * Jev is not a chat model. It gets the post as `state` and answers each typed
+ * question with a probability (`personal_stake`: a 0-3 rating), no text. All 13
+ * questions go in one request; the extension then combines the answers with the
+ * fixed weights below (a logistic regression) into one AI score.
  *
- * Routing: below JEV_LOW → human, at or above JEV_HIGH → AI, both decided by
- * Jev alone; the band between goes to the Ollama model with the v4.3 prompt.
+ * Fitted 2026-09-19 on 4,908 training posts: human LinkedIn, Reddit and MAGE posts; AI
+ * posts from 28 model families plus AI rewrites of real posts. Each was asked with
+ * LinkedIn chrome around it (what the new feed's innerText looks like) and as
+ * clean text; every human source weighs the same.
  *
- * Eval (eval/run-jev.js, 2026-09-18, posts wrapped in LinkedIn chrome like the
- * live feed): 9% of posts reach Ollama; 104/120 AI caught and 4/120 humans
- * flagged, vs gemma alone 105/120 and 12/120. The criteria carry v4.3's
- * false-positive traps; without them false alarms at 90% recall were 13.7%
- * instead of 4.1% (clean text). Cut-offs were fitted on that same data, and
- * LinkedIn chrome shifts the probabilities, so re-check them on the popup's
- * logged scores.
+ * Frozen test set (630 posts by held-out LinkedIn authors, 300 HC3 answers, 415 AI
+ * posts from 7 held-out vendors plus rewrites), chrome around each post:
+ *   Likely AI or AI: 0.2% of authors, 0.3% of HC3 flagged; 68% of AI caught
+ *     (98% of plain AI posts, 65% "humanized", 53% polished rewrites, 14% light edits)
+ *   Uncertain or above: 4.1% of authors; 78% of AI
+ * Clean text (classic UI) scores higher: Likely AI flags 1.4% of authors, catches 75%.
+ * Formulaic creators trip it more: 20-65% of two recent "human" LinkedIn sets
+ * reach Uncertain, though those sets may hold AI-assisted posts.
+ *
+ * The Ollama detector this replaces added nothing in the uncertain band: at the
+ * same false-alarm rate it caught fewer AI posts than the score alone.
  */
-
-const JEV_LOW = 0.51;
-const JEV_HIGH = 0.65;
 
 const JEV_QUESTIONS = {
   ai_written: {
@@ -31,17 +36,138 @@ const JEV_QUESTIONS = {
         "Written by a person, even if polished or formulaic: company announcements and marketing copy, course or product promotions, one-line-paragraph LinkedIn style, non-native English, highly structured writing, posts with real names, numbers, dates, and opinions that could cost the author something.",
     },
   },
-  author: {
-    type: "choice",
-    instructions: "Who most likely produced the text of `post`?",
-    criteria: {
-      person: "A person writing in their own voice about their work, life, or opinions",
-      company: "A company, brand, or marketing team writing a polished announcement or promotion",
-      ai: "An AI language model such as ChatGPT generating the post from a prompt",
-    },
+  essay_shape: { type: "noul", instructions: "Does `post` read like a small structured essay, with an introduction and a wrap-up?" },
+  contrast_reframe: {
+    type: "noul",
+    instructions:
+      "Does `post` contain a contrast that denies one framing and asserts another, such as 'It's not X. It's Y.', 'This isn't about X, it's about Y', or 'not just X, but Y'?",
+  },
+  universal_lesson: {
+    type: "noul",
+    instructions: "Does `post` end by turning its point into a lesson for everyone, such as 'Remember:', 'We all need to…', or 'The lesson?'",
+  },
+  triplet_rhythm: { type: "noul", instructions: "Does `post` have the rhythm of three-part lists, like 'clear, concise, and compelling'?" },
+  cta_close: { type: "noul", instructions: "Does `post` end by asking readers to comment, share, agree, follow, or reply?" },
+  generic_scene: {
+    type: "noul",
+    instructions: "Does `post` use generic atmosphere such as coffee, late nights, or 'still buzzing' in place of concrete facts?",
+  },
+  concession: {
+    type: "noul",
+    instructions: "Does `post` concede a limitation and then reassure in the same sentence, such as 'While X has its flaws, it remains valuable'?",
+  },
+  personal_stake: {
+    type: "score",
+    instructions: "How much does the author of `post` reveal personal cost, risk, emotion, or vulnerability?",
+    criteria: [
+      "None: impersonal",
+      "A little: mentions feelings or experience in passing",
+      "Clearly: shares a real personal cost, mistake, or feeling",
+      "Strongly: exposes something risky or vulnerable about themselves",
+    ],
+  },
+  challenges_outlook: {
+    type: "noul",
+    instructions:
+      "Does `post` acknowledge challenges and then end on an upbeat outlook, such as 'despite the challenges, the future looks bright'?",
+  },
+  punchy_em_dash: { type: "noul", instructions: "Does `post` use em dashes (—) to punch up clauses where a comma or period would do?" },
+  rather_than: { type: "noul", instructions: "Does `post` use constructions like 'Y rather than X' or 'no X, no Y, just Z'?" },
+  typing_residue: {
+    type: "noul",
+    instructions:
+      "Does `post` show signs of being typed by hand, such as double spaces between sentences, stray spaces, or a mix of straight and curly quotes?",
   },
 };
 
-// Browser (content script, popup) or Node (eval harness)
-if (typeof window !== "undefined") Object.assign(window, { JEV_QUESTIONS, JEV_LOW, JEV_HIGH });
-if (typeof module !== "undefined") module.exports = { JEV_QUESTIONS, JEV_LOW, JEV_HIGH };
+const JEV_LABELS = {
+  ai_written: "Reads as AI-written overall",
+  essay_shape: "Small essay: intro and wrap-up",
+  contrast_reframe: "“It's not X. It's Y.”",
+  universal_lesson: "Ends on a lesson for everyone",
+  triplet_rhythm: "Three-part rhythm",
+  cta_close: "Ends asking to comment or share",
+  generic_scene: "Generic scene: coffee, late nights",
+  concession: "Concedes, then reassures",
+  personal_stake: "Personal stake (0-3)",
+  challenges_outlook: "Challenges, then upbeat outlook",
+  punchy_em_dash: "Punchy em dashes",
+  rather_than: "“Y rather than X”",
+  typing_residue: "Typed by hand: stray spaces",
+};
+
+// score = sigmoid(intercept + Σ weight × answer)
+const JEV_MODEL = {
+  intercept: -4.1618,
+  weights: {
+    ai_written: 4.6459,
+    essay_shape: 0.7436,
+    contrast_reframe: -0.0976,
+    universal_lesson: 1.3034,
+    triplet_rhythm: 0.7212,
+    cta_close: 0.8548,
+    generic_scene: 3.6915,
+    concession: -0.2702,
+    personal_stake: 0.1505,
+    challenges_outlook: 0.4665,
+    punchy_em_dash: 2.6948,
+    rather_than: 1.0617,
+    typing_residue: -7.3457,
+  },
+  // mean answers on real LinkedIn authors' posts
+  typicalHuman: {
+    ai_written: 0.22,
+    essay_shape: 0.292,
+    contrast_reframe: 0.235,
+    universal_lesson: 0.102,
+    triplet_rhythm: 0.32,
+    cta_close: 0.16,
+    generic_scene: 0.069,
+    concession: 0.097,
+    personal_stake: 0.364,
+    challenges_outlook: 0.213,
+    punchy_em_dash: 0.25,
+    rather_than: 0.157,
+    typing_residue: 0.379,
+  },
+};
+
+// Verdict = the first line the score reaches. Each line is set by the share of
+// real LinkedIn authors (2021, before ChatGPT) it flags.
+const JEV_CUTS = [
+  { verdict: "DEFINITELY_AI", from: 0.6666 },
+  { verdict: "LIKELY_AI", from: 0.3879 },
+  { verdict: "UNCERTAIN", from: 0.175 },
+  { verdict: "LIKELY_HUMAN", from: 0.0114 },
+  { verdict: "DEFINITELY_HUMAN", from: 0.0 },
+];
+
+// Human posts' score at each percentile, for "more AI-like than N% of human posts".
+const JEV_HUMAN_PERCENTILES = [[0, 0.0001], [10, 0.0034], [20, 0.006], [30, 0.0088], [40, 0.0122], [50, 0.0161], [60, 0.0225], [70, 0.0319], [80, 0.0509], [85, 0.0711], [90, 0.0988], [93, 0.1331], [95, 0.175], [97, 0.2829], [98, 0.3879], [99, 0.5098], [99.5, 0.6666], [99.8, 0.7174], [100, 0.9572]];
+
+const jevValues = (answers) =>
+  Object.fromEntries(Object.entries(answers).map(([q, a]) => [q, a.type === "score" ? a.score : a.noul]));
+
+const jevScore = (values) =>
+  1 / (1 + Math.exp(-Object.entries(JEV_MODEL.weights).reduce((z, [q, w]) => z + w * values[q], JEV_MODEL.intercept)));
+
+const jevVerdict = (score) => JEV_CUTS.find((c) => score >= c.from).verdict;
+
+// How far each answer moved this post's score away from a typical human post's.
+const jevPushes = (values) =>
+  Object.fromEntries(Object.entries(JEV_MODEL.weights).map(([q, w]) => [q, w * (values[q] - JEV_MODEL.typicalHuman[q])]));
+
+function jevHumanPercentile(score) {
+  const p = JEV_HUMAN_PERCENTILES;
+  if (score <= p[0][1]) return p[0][0];
+  for (let i = 1; i < p.length; i++) {
+    if (score < p[i][1]) return p[i - 1][0] + ((p[i][0] - p[i - 1][0]) * (score - p[i - 1][1])) / (p[i][1] - p[i - 1][1]);
+  }
+  return p[p.length - 1][0];
+}
+
+const JEV_EXPORTS = { JEV_QUESTIONS, JEV_LABELS, JEV_MODEL, JEV_CUTS, jevValues, jevScore, jevVerdict, jevPushes, jevHumanPercentile };
+
+// Browser (content script) or Node (eval harness)
+if (typeof window !== "undefined") Object.assign(window, JEV_EXPORTS);
+if (typeof module !== "undefined") module.exports = JEV_EXPORTS;
