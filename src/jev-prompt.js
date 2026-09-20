@@ -4,8 +4,13 @@
  *
  * Jev is not a chat model. It gets the post as `state` and answers each typed
  * question with a probability (`personal_stake`: a 0-3 rating), no text. All 13
- * questions go in one request; the extension then combines the answers with the
- * fixed weights below (a logistic regression) into one AI score.
+ * questions go in one request, along with the clickbait questions at the end of this
+ * file; the extension then combines the answers with the fixed weights below (a
+ * logistic regression) into one AI score.
+ *
+ * Long posts are sent as their first 1,500 characters plus their last 500: the ending
+ * carries the call to action. On long training posts that also cut human posts wrongly
+ * called Likely AI from 9% to 4% (AUC 0.980 -> 0.987).
  *
  * Fitted 2026-09-19 on 4,908 training posts: human LinkedIn, Reddit and MAGE posts; AI
  * posts from 28 model families plus AI rewrites of real posts. Each was asked with
@@ -18,6 +23,7 @@
  *     (98% of plain AI posts, 65% "humanized", 53% polished rewrites, 14% light edits)
  *   Uncertain or above: 4.1% of authors; 78% of AI
  * Clean text (classic UI) scores higher: Likely AI flags 1.4% of authors, catches 75%.
+ * (Those runs truncated long posts to their first 2,000 characters.)
  * Formulaic creators trip it more: 20-65% of two recent "human" LinkedIn sets
  * reach Uncertain, though those sets may hold AI-assisted posts.
  *
@@ -166,7 +172,70 @@ function jevHumanPercentile(score) {
   return p[p.length - 1][0];
 }
 
-const JEV_EXPORTS = { JEV_QUESTIONS, JEV_LABELS, JEV_MODEL, JEV_CUTS, jevValues, jevScore, jevVerdict, jevPushes, jevHumanPercentile };
+
+// ---- Clickbait ----
+// Three kinds of bait, asked in the same request as the questions above. A post is bait when the
+// highest of these four answers reaches JEV_BAIT_CUT.
+const IGN =
+  "Ignoring the author's name, headline, and the Like/Comment/Repost buttons and reaction counts around it, ";
+
+const JEV_BAIT_QUESTIONS = {
+  eng_bait: {
+    type: "noul",
+    instructions:
+      IGN + "does `post` ask readers to comment, react, repost, tag someone, follow, or DM, to boost its reach or to get something in return?",
+    criteria: {
+      true: "Engagement bait: 'Comment GUIDE and I'll send it', 'Repost ♻️ to help your network', 'Tag someone who…', 'Follow me for more', or a closing throwaway prompt such as 'Agree?', 'Thoughts?', 'What would you add? 👇', 'Share your story in the comments'.",
+      false:
+        "No such ask, or an ordinary call to action: a link to read, register, apply, or buy; a specific question asking peers for concrete information.",
+    },
+  },
+  eng_story_ask: {
+    type: "noul",
+    instructions: "Does `post` end by inviting readers to share their own story, tip, or opinion in the comments?",
+  },
+  hook_gap: {
+    type: "noul",
+    instructions: IGN + "does the opening of `post` hold back its point so that readers click 'see more'?",
+    criteria: {
+      true: "Curiosity-gap hook: a cliffhanger ('I got fired yesterday.', 'Then the CEO stopped at my desk.'), a tease ('Nobody talks about this.', 'Here's what changed everything 👇', 'The answer may surprise you'), or a headline that sells a reveal ('The mistake that nearly killed my startup').",
+      false:
+        "The opening states the news or the point: an announcement, an event, a finding, an opinion stated plainly, or a story that starts and explains itself.",
+    },
+  },
+  rage_bait: {
+    type: "noul",
+    instructions: IGN + "does `post` use a deliberately provocative or contrarian framing to trigger disagreement?",
+    criteria: {
+      true: "Provocation as the device: 'Unpopular opinion:', 'X is dead.', 'Stop doing X.', sweeping put-downs of a group, a claim made to start a fight in the comments.",
+      false: "A critique or opinion argued with reasons or evidence, even if strong or sarcastic; neutral news; ordinary advice.",
+    },
+  },
+};
+
+const JEV_BAIT_LABELS = {
+  eng_bait: "Asks for comments, reposts, follows",
+  eng_story_ask: "Ends inviting stories in the comments",
+  hook_gap: "Opening holds back the point",
+  rage_bait: "Provokes on purpose",
+};
+
+const JEV_BAIT_KINDS = {
+  eng_bait: "engagement bait",
+  eng_story_ask: "engagement bait",
+  hook_gap: "curiosity hook",
+  rage_bait: "rage bait",
+};
+
+const JEV_BAIT_CUT = 0.6;
+
+// Bait score = the loudest of the four; its question names the kind.
+function jevBait(values) {
+  const top = Object.keys(JEV_BAIT_QUESTIONS).reduce((a, q) => (values[q] > values[a] ? q : a));
+  return { score: values[top], kind: JEV_BAIT_KINDS[top], flagged: values[top] >= JEV_BAIT_CUT };
+}
+
+const JEV_EXPORTS = { JEV_QUESTIONS, JEV_LABELS, JEV_BAIT_QUESTIONS, JEV_BAIT_LABELS, JEV_BAIT_CUT, jevBait, JEV_MODEL, JEV_CUTS, jevValues, jevScore, jevVerdict, jevPushes, jevHumanPercentile };
 
 // Browser (content script) or Node (eval harness)
 if (typeof window !== "undefined") Object.assign(window, JEV_EXPORTS);

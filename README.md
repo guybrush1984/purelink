@@ -29,6 +29,21 @@ Lightly AI-edited human posts mostly pass as human (14% caught). Very formulaic
 human writers get **Uncertain** more often than the average author. About
 $0.04 per 1,000 posts on OpenRouter, ~0.6 s per post.
 
+## Clickbait
+
+The same request also asks four questions about bait, so it costs no extra call.
+A post gets a **Bait** chip when one of them is confident:
+
+- **engagement bait** — "Comment GUIDE and I'll send it", "Repost ♻️", "Agree?", "What would you add? 👇"
+- **curiosity hook** — an opening that holds back the point so you click "see more"
+- **rage bait** — "Unpopular opinion:", "X is dead", provocation as the device
+
+Measured against 360 posts labeled by hand (`eval/bait-rubric.md` has the rules),
+on the 120 kept aside: **76% of flagged posts really are bait, and 89% of bait is
+caught**; 8 of 92 clean posts get flagged, several of them borderline. Rage bait is
+too rare to measure — only 5 of the 360 posts. Bait is common in AI-written posts
+(56% of them, against 18% of human posts).
+
 ## Setup
 
 **1. A Jev key.** Paste either key in the popup:

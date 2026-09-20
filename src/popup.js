@@ -83,7 +83,8 @@ async function showJevStats() {
   const scored = jevLog.filter((e) => e.s != null);
   if (!scored.length) return;
   const ai = scored.filter((e) => e.v === "LIKELY_AI" || e.v === "DEFINITELY_AI").length;
-  jevStats.textContent = `${scored.length} posts scored · ${Math.round((ai / scored.length) * 100)}% flagged AI`;
+  const bait = scored.filter((e) => e.b).length;
+  jevStats.textContent = `${scored.length} posts · ${Math.round((ai / scored.length) * 100)}% flagged AI · ${Math.round((bait / scored.length) * 100)}% bait`;
 }
 
 async function copyLog() {

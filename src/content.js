@@ -385,6 +385,11 @@
 
     const badge = el("ai-detected-badge ai-badge-" + slug, BADGE_LABELS[result.verdict] || result.verdict);
     badge.title = "Click for Jev's answers";
+    if (result.bait.flagged) {
+      const chip = el("ai-bait-chip", "Bait", "span");
+      chip.title = `Clickbait: ${result.bait.kind} (${Math.round(result.bait.score * 100)}%)`;
+      badge.append(chip);
+    }
     // Slop meter: the weighted AI score as a bar along the badge's bottom edge
     const meter = el("ai-slop-meter", undefined, "span");
     meter.append(el("ai-slop-fill", undefined, "span"));
@@ -399,6 +404,23 @@
     post.appendChild(badge);
   }
 
+  // One question: its answer as a bar, and which way it pushed this post.
+  function jevRow(q, v, label, dir, strong) {
+    const scale = q === "personal_stake" ? 3 : 1;
+    const row = el("ai-jev-row");
+    row.title = (window.JEV_QUESTIONS[q] || window.JEV_BAIT_QUESTIONS[q]).instructions;
+    const bar = el("ai-jev-bar", undefined, "span");
+    bar.append(el("ai-jev-fill", undefined, "span"));
+    bar.firstChild.style.width = Math.round((v / scale) * 100) + "%";
+    row.append(
+      el("ai-jev-label", label, "span"),
+      bar,
+      el("ai-jev-val", scale === 1 ? Math.round(v * 100) + "%" : `${v.toFixed(1)}/3`, "span"),
+      el(`ai-jev-push ai-jev-push-${dir}${strong ? " ai-jev-push-strong" : ""}`, { none: "·", ai: "▲ AI", human: "▼ human", bait: "▲ bait" }[dir], "span")
+    );
+    return row;
+  }
+
   // Every question's answer, sorted by how far it moved this post's score from
   // a typical human post's: the top rows are why the post got its verdict.
   function jevPanel(result) {
@@ -409,27 +431,20 @@
       el("ai-jev-head", `AI score ${result.score.toFixed(2)} · ${BADGE_LABELS[result.verdict]}`),
       el("ai-jev-sub", `More AI-like than ${pctl >= 99.5 ? Math.min(pctl, 99.9).toFixed(1) : Math.round(pctl)}% of human LinkedIn posts`)
     );
+    const bait = result.bait;
+    panel.append(
+      el("ai-jev-bait" + (bait.flagged ? " ai-jev-bait-on" : ""), bait.flagged ? `Clickbait: ${bait.kind}` : "No clickbait")
+    );
+    Object.keys(window.JEV_BAIT_LABELS)
+      .sort((a, b) => result.values[b] - result.values[a])
+      .forEach((q) => panel.append(jevRow(q, result.values[q], window.JEV_BAIT_LABELS[q], result.values[q] >= window.JEV_BAIT_CUT ? "bait" : "none")));
+    panel.append(el("ai-jev-sep", "Written by AI?"));
     const pushes = window.jevPushes(result.values);
     Object.keys(pushes)
       .sort((a, b) => Math.abs(pushes[b]) - Math.abs(pushes[a]))
       .forEach((q) => {
-        const v = result.values[q];
-        const scale = q === "personal_stake" ? 3 : 1;
-        const row = el("ai-jev-row");
-        row.title = window.JEV_QUESTIONS[q].instructions;
-        const bar = el("ai-jev-bar", undefined, "span");
-        bar.append(el("ai-jev-fill", undefined, "span"));
-        bar.firstChild.style.width = Math.round((v / scale) * 100) + "%";
         const p = pushes[q];
-        const dir = Math.abs(p) < 0.1 ? "none" : p > 0 ? "ai" : "human";
-        const arrow = { none: "·", ai: "▲ AI", human: "▼ human" }[dir];
-        row.append(
-          el("ai-jev-label", window.JEV_LABELS[q], "span"),
-          bar,
-          el("ai-jev-val", scale === 1 ? Math.round(v * 100) + "%" : `${v.toFixed(1)}/3`, "span"),
-          el(`ai-jev-push ai-jev-push-${dir}${Math.abs(p) >= 0.5 ? " ai-jev-push-strong" : ""}`, arrow, "span")
-        );
-        panel.append(row);
+        panel.append(jevRow(q, result.values[q], window.JEV_LABELS[q], Math.abs(p) < 0.1 ? "none" : p > 0 ? "ai" : "human", Math.abs(p) >= 0.5));
       });
     return panel;
   }

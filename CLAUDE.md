@@ -13,7 +13,7 @@ only used by the fact-checker.
 │   ├── content.js      # LinkedIn: DOM observation, UI badges
 │   ├── detector.js     # Detection: Jev request → score → verdict, score log
 │   ├── prompt.js       # Former Ollama detection prompt (eval/run.js baseline only)
-│   ├── jev-prompt.js   # Jev questions, weights, verdict cuts
+│   ├── jev-prompt.js   # Jev questions (AI + clickbait), weights, verdict cuts
 │   ├── factcheck-prompt.js # Claim-extraction SOP (fact-check stage 0)
 │   ├── popup.html      # Settings UI markup
 │   ├── popup.js        # Settings UI logic
@@ -23,6 +23,7 @@ only used by the fact-checker.
 │   ├── gen-ai-posts.js # Generate AI half of eval set via Ollama
 │   ├── run.js          # Run prompt against dataset, report accuracy
 │   ├── run-jev.js      # The shipped Jev detector against the dataset
+│   ├── bait-rubric.md  # Hand-labelling rules for clickbait (eval/data/bait-labels.jsonl)
 │   ├── gen-openrouter-posts.js # Generate AI posts / rewrites via OpenRouter models
 │   ├── factcheck-samples/ # Claim-rich fixtures for the extraction gate
 │   └── data/           # JSONL datasets (gitignored)
@@ -74,8 +75,14 @@ chrome around a post. Rules learned the hard way:
   frozen test split in `eval/data/split.json`.
 - An LLM second opinion on uncertain posts (gemma via Ollama) caught fewer AI
   posts than the score alone at the same false-alarm rate, so there is none.
-- The popup's "Copy log" has every post's 13 answers and score (never text):
-  the verdict cuts were set to flag ~2% of real authors Likely AI.
+- The popup's "Copy log" has every post's answers, score and bait kind (never
+  text): the verdict cuts were set to flag ~2% of real authors Likely AI.
+- Long posts are sent head + tail (1,500 + 500 chars). Cutting the ending hid
+  most engagement bait, and the tail also lowered human false alarms on long
+  posts (9% -> 4% Likely AI).
+- Clickbait rides in the same request: 4 questions, bait = the highest >= 0.6,
+  and that question names the kind. Held-out labels: 76% precision, 89% recall.
+  Rage bait is unvalidated (5 examples in 360 labeled posts).
 
 Datasets are `{"text", "label": "human"|"ai", "source"}` JSONL in `eval/data/`.
 Caveats: no public labeled LinkedIn AI dataset exists; human posts are real
@@ -93,7 +100,7 @@ badge). Re-run its probes before relying on them — LinkedIn ships new feeds of
 ```
 Detection (automatic, on scroll):
 LinkedIn DOM → content.js → detector.js → background.js → Jev (TypeSafe or OpenRouter)
-  13 answers → weighted score (jev-prompt.js) → verdict from JEV_CUTS
+  17 answers → weighted score (jev-prompt.js) → verdict from JEV_CUTS; 4 bait answers → Bait chip
   no key → "Add a Jev key" badge; Jev error → "scanning…" stays, retried on hover
 → verdict + meter on the badge (click: all 13 answers) → CSS class; answers (no text) → storage jevLog
 

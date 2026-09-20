@@ -7,7 +7,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { JEV_QUESTIONS, JEV_CUTS, jevValues, jevScore, jevVerdict } = require("../src/jev-prompt.js");
+const { JEV_QUESTIONS, JEV_BAIT_QUESTIONS, JEV_CUTS, jevValues, jevScore, jevVerdict, jevBait } = require("../src/jev-prompt.js");
 
 const DATA_DIR = path.join(__dirname, "data");
 const ROUTE = process.env.TYPESAFE_API_KEY
@@ -41,9 +41,11 @@ const POLLUTE_FOOTERS = [
 const pollute = (text, i) =>
   POLLUTE_HEADERS[i % POLLUTE_HEADERS.length] + text + POLLUTE_FOOTERS[i % POLLUTE_FOOTERS.length];
 
-// Same cut as detector.js, including the dangling-surrogate strip Jev needs.
+// Same cut as detector.js: a long post keeps its ending, and no dangling surrogate.
 const truncate = (text) =>
-  text.length > MAX_TEXT ? text.substring(0, MAX_TEXT).replace(/[\uD800-\uDBFF]$/, "") + "..." : text;
+  text.length > MAX_TEXT
+    ? text.substring(0, 1500).replace(/[\uD800-\uDBFF]$/, "") + " […] " + text.slice(-500).replace(/^[\uDC00-\uDFFF]/, "")
+    : text;
 
 // Balanced pick mirrors run.js so --limit selects the same posts as its results files.
 function loadDataset() {
@@ -69,7 +71,7 @@ async function ask(post) {
     const res = await fetch(ROUTE.url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${ROUTE.key}` },
-      body: JSON.stringify({ model: ROUTE.model, state: { post }, questions: JEV_QUESTIONS }),
+      body: JSON.stringify({ model: ROUTE.model, state: { post }, questions: { ...JEV_QUESTIONS, ...JEV_BAIT_QUESTIONS } }),
     });
     if (res.ok) return res.json();
     if (!(res.status === 429 || res.status >= 500) || attempt >= 5) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
@@ -82,7 +84,7 @@ async function score(text) {
   const { answers, usage, model } = await ask(truncate(text));
   const values = jevValues(answers);
   const s = jevScore(values);
-  return { model, ms: Date.now() - t0, usage, values, score: s, verdict: jevVerdict(s) };
+  return { model, ms: Date.now() - t0, usage, values, score: s, verdict: jevVerdict(s), bait: jevBait(values) };
 }
 
 // Mann-Whitney AUC: chance a random AI post outscores a random human post.
@@ -141,6 +143,8 @@ async function main() {
   for (const [name, from] of [["Likely AI or AI", "LIKELY_AI"], ["Uncertain or above", "UNCERTAIN"]]) {
     console.log(`\n${name}: AI caught ${pct(flagged(ai, from), ai.length)}  humans flagged ${pct(flagged(human, from), human.length)}`);
   }
+  console.log(`\nclickbait: ${pct(ok.filter((r) => r.bait.flagged).length, ok.length)} of posts (by kind: ` +
+    [...new Set(ok.filter((r) => r.bait.flagged).map((r) => r.bait.kind))].map((k) => `${k} ${ok.filter((r) => r.bait.flagged && r.bait.kind === k).length}`).join(", ") + ")");
 
   const out = path.join(DATA_DIR, `results-jev-1.13${TAG ? "-" + TAG : ""}.jsonl`);
   fs.writeFileSync(out, results.map((r) => JSON.stringify(r)).join("\n") + "\n");
