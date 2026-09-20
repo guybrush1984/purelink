@@ -41,7 +41,9 @@ A post gets a **Bait** chip when one of them is confident:
 Measured against 360 posts labeled by hand (`eval/bait-rubric.md` has the rules),
 on the 120 kept aside: **76% of flagged posts really are bait, and 89% of bait is
 caught**; 8 of 92 clean posts get flagged, several of them borderline. Rage bait is
-too rare to measure — only 5 of the 360 posts. Bait is common in AI-written posts
+too rare in real feeds to measure that way — 5 of the 360 posts — so it was checked separately:
+perfectly on 40 hand-written posts (`eval/bait-rage-fixtures.jsonl`), and on 36 real posts picked
+for sounding provocative it caught 4 of the 5 genuine ones and flagged 4 of 31 look-alikes. Bait is common in AI-written posts
 (56% of them, against 18% of human posts).
 
 ## Setup

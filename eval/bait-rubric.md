@@ -30,3 +30,15 @@ Decisions made while labeling (apply consistently):
   "I got found out 😬"), an explicit tease ("here's what changed everything:", "may be surprising"), or a headline
   that sells the reveal. A first-person story that simply starts narrating an incident is not H on its own.
 - "DM me with your email and I'll send the starter code" is E (transaction for engagement).
+
+## Rage bait is barely present in real data
+
+Only 5 of the 360 labelled posts are rage bait, too few to measure. Two extra checks:
+
+- `bait-rage-fixtures.jsonl`: 20 rage-bait posts and 20 hard negatives (strong opinions and blunt
+  critiques that are *argued*, plain bad news, blunt advice), written by hand. The question separated
+  them perfectly (20/20 flagged, 0/20 negatives) — but the same author wrote the question and the
+  posts, so read it as "not broken", not as accuracy.
+- 36 real posts pulled from the datasets by provocation markers ("hot take", "is dead", "dirty
+  secret", "cringe", "scam"), then labelled: 5 real rage bait, 31 look-alikes. AUC 0.955; at the
+  shipped 0.6, 4 of 5 flagged and 4 of 31 look-alikes flagged (two of those are arguable).

@@ -82,7 +82,9 @@ chrome around a post. Rules learned the hard way:
   posts (9% -> 4% Likely AI).
 - Clickbait rides in the same request: 4 questions, bait = the highest >= 0.6,
   and that question names the kind. Held-out labels: 76% precision, 89% recall.
-  Rage bait is unvalidated (5 examples in 360 labeled posts).
+  Rage bait has only 5 examples in the 360 labelled posts; it was checked separately against
+  eval/bait-rage-fixtures.jsonl (hand-written, 20/20 vs 0/20) and 36 real posts picked by
+  provocation markers (AUC 0.955, 4/5 caught, 4/31 look-alikes flagged). See eval/bait-rubric.md.
 
 Datasets are `{"text", "label": "human"|"ai", "source"}` JSONL in `eval/data/`.
 Caveats: no public labeled LinkedIn AI dataset exists; human posts are real
