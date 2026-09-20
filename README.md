@@ -1,8 +1,9 @@
 # AI Post Detector
 
 Browser extension that flags AI-generated posts on LinkedIn. **Jev**, a fast
-decision model, answers 13 quick questions about every post; the answers,
-weighted, give each post an AI score and a verdict. No LLM runs to detect AI.
+decision model, answers 17 quick questions about every post; the answers,
+weighted, give each post an AI score and a verdict, and flag clickbait. No LLM
+runs to detect AI.
 
 ![Demo](demo.gif)
 
@@ -12,8 +13,11 @@ Jev (TypeSafe's `jev-1.13`) doesn't write text. It reads a post and answers type
 questions with probabilities: *was this written by an AI model?*, *does it use em
 dashes to punch up clauses?*, *does it end on a lesson for everyone?*, *does it show
 typing residue like double spaces?* and nine more. Fixed weights, learned from
-~4,900 labeled posts, combine the 13 answers into one score. Click a badge to see
+~4,900 labeled posts, combine those 13 answers into one score. Click a badge to see
 every answer and which ones pushed the post towards AI or human.
+
+A long post is sent as its first 1,500 characters plus its last 500, so the ending
+is never cut off.
 
 Tested once on posts kept out of all the tuning: 630 posts by LinkedIn authors
 from 2021 (before ChatGPT), 300 human answers from HC3, and 415 AI posts from 7
@@ -22,8 +26,12 @@ held-out authors' real posts. With LinkedIn's page clutter around each post:
 
 | Verdict | Real authors flagged | AI posts caught |
 |---|---|---|
-| **Likely AI** or **AI** | 0.2% (HC3: 0.3%) | 68%: 98% of plain AI posts, 65% "write like a human", 53% polished rewrites |
-| **Uncertain** or above | 4.1% (HC3: 1.3%) | 78% |
+| **Likely AI** or **AI** | 0.3% (HC3: 0.3%) | 67%: 95% of plain AI posts, 64% "write like a human", 53% polished rewrites |
+| **Uncertain** or above | 4.0% (HC3: 1.3%) | 78% |
+
+The cut-offs were set on training posts, to flag 2% and 5% of real authors; on
+these unseen authors they land at 0.3% and 4.0%. 38% of their posts score low
+enough for a plain **Human** badge, against 1.7% of AI posts.
 
 Lightly AI-edited human posts mostly pass as human (14% caught). Very formulaic
 human writers get **Uncertain** more often than the average author. About
@@ -40,7 +48,9 @@ A post gets a **Bait** chip when one of them is confident:
 
 Measured against 360 posts labeled by hand (`eval/bait-rubric.md` has the rules),
 on the 120 kept aside: **76% of flagged posts really are bait, and 89% of bait is
-caught**; 8 of 92 clean posts get flagged, several of them borderline. Rage bait is
+caught**; 8 of 92 clean posts get flagged, several of them borderline. On the
+test split above, the chip lands on 40% of the AI posts, 8% of the held-out
+authors' posts and 4% of the HC3 answers. Rage bait is
 too rare in real feeds to measure that way — 5 of the 360 posts — so it was checked separately:
 perfectly on 40 hand-written posts (`eval/bait-rage-fixtures.jsonl`), and on 36 real posts picked
 for sounding provocative it caught 4 of the 5 genuine ones and flagged 4 of 31 look-alikes. Bait is common in AI-written posts

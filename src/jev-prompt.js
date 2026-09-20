@@ -18,12 +18,15 @@
  * clean text; every human source weighs the same.
  *
  * Frozen test set (630 posts by held-out LinkedIn authors, 300 HC3 answers, 415 AI
- * posts from 7 held-out vendors plus rewrites), chrome around each post:
- *   Likely AI or AI: 0.2% of authors, 0.3% of HC3 flagged; 68% of AI caught
- *     (98% of plain AI posts, 65% "humanized", 53% polished rewrites, 14% light edits)
- *   Uncertain or above: 4.1% of authors; 78% of AI
- * Clean text (classic UI) scores higher: Likely AI flags 1.4% of authors, catches 75%.
- * (Those runs truncated long posts to their first 2,000 characters.)
+ * posts from 7 held-out vendors plus rewrites), measured in the shipped shape —
+ * these questions in one request, chrome around each post, head+tail truncation:
+ *   Likely AI or AI: 0.32% of authors, 0.33% of HC3 flagged; 66.7% of AI caught
+ *     (95% of plain AI posts, 64% "humanized", 53% polished rewrites, 14% light edits)
+ *   Uncertain or above: 3.97% of authors, 1.33% of HC3; 78.1% of AI; AUC 0.952
+ * The cuts still sit where they were set: in that same shape they flag 0.56% / 2.13% /
+ * 5.07% of the training authors (targets 0.5% / 2% / 5%).
+ * Clean text (the classic UI) scores higher: Likely AI flagged 1.4% of authors and
+ * caught 75%, measured with the older first-2,000-characters truncation.
  * Formulaic creators trip it more: 20-65% of two recent "human" LinkedIn sets
  * reach Uncertain, though those sets may hold AI-assisted posts.
  *

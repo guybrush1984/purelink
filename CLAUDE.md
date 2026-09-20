@@ -76,7 +76,8 @@ chrome around a post. Rules learned the hard way:
 - An LLM second opinion on uncertain posts (gemma via Ollama) caught fewer AI
   posts than the score alone at the same false-alarm rate, so there is none.
 - The popup's "Copy log" has every post's answers, score and bait kind (never
-  text): the verdict cuts were set to flag ~2% of real authors Likely AI.
+  text): the verdict cuts were set to flag ~2% of real authors Likely AI, and in
+  the shipped shape they still flag 2.1% of the training authors.
 - Long posts are sent head + tail (1,500 + 500 chars). Cutting the ending hid
   most engagement bait, and the tail also lowered human false alarms on long
   posts (9% -> 4% Likely AI).
