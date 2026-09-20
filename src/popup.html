@@ -208,7 +208,19 @@
   </div>
 
   <div class="section">
-    <div class="section-title">Ollama Server</div>
+    <div class="section-title">AI detection (Jev)</div>
+    <div class="input-group">
+      <input type="password" id="jevApiKey" placeholder="OpenRouter or TypeSafe API key" autocomplete="off">
+    </div>
+    <div class="hint">Jev answers 17 questions per post (AI detection + clickbait). OpenRouter keys (sk-or-…) are billed there; any other key goes to api.typesafe.ai.</div>
+    <div class="input-row" style="margin-top:6px;align-items:center">
+      <div class="input-group hint" id="jevStats" style="margin-top:0">No posts scored yet</div>
+      <button class="btn btn-small" id="copyLog">Copy log</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Fact-check: Ollama server</div>
     <div class="input-row">
       <div class="input-group">
         <input type="text" id="ollamaUrl" placeholder="http://localhost:11434 or https://ollama.com">
@@ -218,7 +230,7 @@
   </div>
 
   <div class="section">
-    <div class="section-title">Model</div>
+    <div class="section-title">Fact-check: model</div>
     <select id="modelSelect">
       <option value="">-- Select model --</option>
     </select>
@@ -226,36 +238,14 @@
   </div>
 
   <div class="section">
-    <div class="section-title">Ollama API Key</div>
+    <div class="section-title">Fact-check: Ollama API key</div>
     <div class="input-group">
-      <input type="password" id="ollamaApiKey" placeholder="for fact-check web search" autocomplete="off">
+      <input type="password" id="ollamaApiKey" placeholder="for web search" autocomplete="off">
     </div>
     <div class="error-text" style="display:block;color:#888;font-size:10px;margin-top:4px">
       Separate from <code>ollama signin</code>. Create at ollama.com.<br>
       Required for fact-check. Also lets you set the server to
       <code>https://ollama.com</code> and skip the local daemon entirely.
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">Jev slop meter (OpenRouter)</div>
-    <div class="input-group">
-      <input type="password" id="openrouterApiKey" placeholder="OpenRouter API key — empty = Ollama only" autocomplete="off">
-    </div>
-    <div class="input-row" style="margin-top:6px">
-      <div class="input-group">
-        <span class="toggle-label" style="font-size:11px">Human below</span>
-        <input type="number" id="jevLow" min="0" max="1" step="0.01">
-      </div>
-      <div class="input-group">
-        <span class="toggle-label" style="font-size:11px">AI from</span>
-        <input type="number" id="jevHigh" min="0" max="1" step="0.01">
-      </div>
-    </div>
-    <div class="hint">Jev scores every post (~$0.00003); only scores between the two go to Ollama.</div>
-    <div class="input-row" style="margin-top:6px;align-items:center">
-      <div class="input-group hint" id="jevStats" style="margin-top:0">No posts scored yet</div>
-      <button class="btn btn-small" id="copyLog">Copy log</button>
     </div>
   </div>
 
@@ -266,7 +256,6 @@
     <span id="statusText">Checking...</span>
   </div>
 
-  <script src="jev-prompt.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

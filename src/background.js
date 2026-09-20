@@ -1,6 +1,11 @@
 const api = typeof browser !== "undefined" ? browser : chrome;
 const isFirefox = typeof browser !== "undefined";
-const JEV_URL = "https://openrouter.ai/api/alpha/decisions";
+// One key field takes either: OpenRouter keys start with "sk-or-", anything
+// else goes to TypeSafe's own API. Same request and answers, different model id.
+const JEV_ROUTES = {
+  openrouter: { url: "https://openrouter.ai/api/alpha/decisions", model: "typesafe/jev-1.13" },
+  typesafe: { url: "https://api.typesafe.ai/v1/systemone", model: "jev-1.13.0" },
+};
 
 // Chrome MV3 service worker loads these itself; Firefox MV2 lists them in the
 // manifest's background.scripts, where importScripts does not exist.
@@ -71,21 +76,23 @@ api.runtime.onMessage.addListener((msg, sender, respond) => {
     return true;
   }
   if (msg.type === "JEV_REQUEST") {
-    jevRequest(msg.body).then(respond);
+    jevRequest(msg.state, msg.questions).then(respond);
     return true;
   }
 });
 
-// Jev answers typed questions with probabilities on OpenRouter's Decisions
-// route, not chat completions. Callers treat any error as "ask Ollama instead".
-async function jevRequest(body) {
+// Jev answers typed questions with probabilities (a decisions route, not chat
+// completions). `openrouterApiKey` is the pre-TypeSafe name of the same setting.
+async function jevRequest(state, questions) {
   try {
-    const { openrouterApiKey } = await api.storage.local.get(["openrouterApiKey"]);
-    if (!openrouterApiKey) return { error: "No OpenRouter API key" };
-    const res = await fetch(JEV_URL, {
+    const { jevApiKey, openrouterApiKey } = await api.storage.local.get(["jevApiKey", "openrouterApiKey"]);
+    const key = jevApiKey || openrouterApiKey;
+    if (!key) return { error: "No Jev API key", noKey: true };
+    const route = JEV_ROUTES[key.startsWith("sk-or-") ? "openrouter" : "typesafe"];
+    const res = await fetch(route.url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${openrouterApiKey}` },
-      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ model: route.model, state, questions }),
     });
     if (!res.ok) return { error: `Jev error: ${res.status}` };
     return { data: await res.json() };

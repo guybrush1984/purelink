@@ -11,7 +11,7 @@
   const COMMENT_SELECTOR = '[componentkey^="replaceableComment"]';
   // Anything this extension injects into a post card. innerText would otherwise
   // feed our own UI back to the model — see DOM-NOTES.md.
-  const OWN_UI = ".ai-detected-badge, .ai-fc-btn, .ai-fc-panel, .ai-fc-pin, .ai-fc-card";
+  const OWN_UI = ".ai-detected-badge, .ai-jev-panel, .ai-fc-btn, .ai-fc-panel, .ai-fc-pin, .ai-fc-card";
   const MIN_POST_TEXT = 150;
   const MIN_TEXT = 50;
   const VISIBILITY = 0.3;
@@ -366,6 +366,14 @@
     }
 
     const result = await window.detectAIContent(text);
+    if (result.noKey) {
+      clearPending(post);
+      post.classList.add("ai-analyzed"); // positions the badge; settings changes clear it
+      const badge = el("ai-detected-badge ai-badge-nokey", "Add a Jev key");
+      badge.title = "Paste an OpenRouter or TypeSafe API key in the extension popup";
+      post.appendChild(badge);
+      return;
+    }
     if (!result.verdict) {
       processed.delete(post); // detection failed — allow retry on re-hover/scroll
       return; // leave "scanning…" so the user knows it is still coming
@@ -375,21 +383,70 @@
     const slug = result.verdict.toLowerCase().replace(/_/g, "-");
     post.classList.add("ai-analyzed", "ai-verdict-" + slug);
 
-    const badge = document.createElement("div");
-    badge.className = "ai-detected-badge ai-badge-" + slug;
-    badge.textContent = BADGE_LABELS[result.verdict] || result.verdict;
-    badge.title = [result.reason, result.via && `decided by ${result.via === "jev" ? "Jev" : "Ollama"}`].filter(Boolean).join(" · ");
-    // Slop meter: Jev's probability that the post is AI-written, shown on every
-    // post Jev scored, including the ones it handed to Ollama.
-    if (result.slop != null) {
-      const pct = Math.round(result.slop * 100);
-      badge.append(el("ai-slop-pct", ` · ${pct}%`, "span"));
-      const meter = el("ai-slop-meter", undefined, "span");
-      meter.append(el("ai-slop-fill", undefined, "span"));
-      meter.firstChild.style.width = pct + "%";
-      badge.append(meter);
+    const badge = el("ai-detected-badge ai-badge-" + slug, BADGE_LABELS[result.verdict] || result.verdict);
+    badge.title = "Click for Jev's answers";
+    if (result.bait.flagged) {
+      const chip = el("ai-bait-chip", "Bait", "span");
+      chip.title = `Clickbait: ${result.bait.kind} (${Math.round(result.bait.score * 100)}%)`;
+      badge.append(chip);
     }
+    // Slop meter: the weighted AI score as a bar along the badge's bottom edge
+    const meter = el("ai-slop-meter", undefined, "span");
+    meter.append(el("ai-slop-fill", undefined, "span"));
+    meter.firstChild.style.width = Math.round(result.score * 100) + "%";
+    badge.append(meter);
+    badge.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const open = post.querySelector(":scope > .ai-jev-panel");
+      open ? open.remove() : post.appendChild(jevPanel(result));
+    });
     post.appendChild(badge);
+  }
+
+  // One question: its answer as a bar, and which way it pushed this post.
+  function jevRow(q, v, label, dir, strong) {
+    const scale = q === "personal_stake" ? 3 : 1;
+    const row = el("ai-jev-row");
+    row.title = (window.JEV_QUESTIONS[q] || window.JEV_BAIT_QUESTIONS[q]).instructions;
+    const bar = el("ai-jev-bar", undefined, "span");
+    bar.append(el("ai-jev-fill", undefined, "span"));
+    bar.firstChild.style.width = Math.round((v / scale) * 100) + "%";
+    row.append(
+      el("ai-jev-label", label, "span"),
+      bar,
+      el("ai-jev-val", scale === 1 ? Math.round(v * 100) + "%" : `${v.toFixed(1)}/3`, "span"),
+      el(`ai-jev-push ai-jev-push-${dir}${strong ? " ai-jev-push-strong" : ""}`, { none: "·", ai: "▲ AI", human: "▼ human", bait: "▲ bait" }[dir], "span")
+    );
+    return row;
+  }
+
+  // Every question's answer, sorted by how far it moved this post's score from
+  // a typical human post's: the top rows are why the post got its verdict.
+  function jevPanel(result) {
+    const panel = el("ai-jev-panel");
+    panel.addEventListener("click", (e) => e.stopPropagation());
+    const pctl = window.jevHumanPercentile(result.score);
+    panel.append(
+      el("ai-jev-head", `AI score ${result.score.toFixed(2)} · ${BADGE_LABELS[result.verdict]}`),
+      el("ai-jev-sub", `More AI-like than ${pctl >= 99.5 ? Math.min(pctl, 99.9).toFixed(1) : Math.round(pctl)}% of human LinkedIn posts`)
+    );
+    const bait = result.bait;
+    panel.append(
+      el("ai-jev-bait" + (bait.flagged ? " ai-jev-bait-on" : ""), bait.flagged ? `Clickbait: ${bait.kind}` : "No clickbait")
+    );
+    Object.keys(window.JEV_BAIT_LABELS)
+      .sort((a, b) => result.values[b] - result.values[a])
+      .forEach((q) => panel.append(jevRow(q, result.values[q], window.JEV_BAIT_LABELS[q], result.values[q] >= window.JEV_BAIT_CUT ? "bait" : "none")));
+    panel.append(el("ai-jev-sep", "Written by AI?"));
+    const pushes = window.jevPushes(result.values);
+    Object.keys(pushes)
+      .sort((a, b) => Math.abs(pushes[b]) - Math.abs(pushes[a]))
+      .forEach((q) => {
+        const p = pushes[q];
+        panel.append(jevRow(q, result.values[q], window.JEV_LABELS[q], Math.abs(p) < 0.1 ? "none" : p > 0 ? "ai" : "human", Math.abs(p) >= 0.5));
+      });
+    return panel;
   }
 
   function onIntersect(entries) {
@@ -438,7 +495,7 @@
       el.classList.remove("ai-analyzed", "ai-pending", ...VERDICT_CLASSES);
     });
     document.querySelectorAll(".ai-fc-mark").forEach(unwrap);
-    document.querySelectorAll(".ai-detected-badge, .ai-fc-btn, .ai-fc-panel, .ai-fc-pin, .ai-fc-card").forEach((n) => n.remove());
+    document.querySelectorAll(".ai-detected-badge, .ai-jev-panel, .ai-fc-btn, .ai-fc-panel, .ai-fc-pin, .ai-fc-card").forEach((n) => n.remove());
   }
 
   function reset() {
@@ -454,7 +511,6 @@
       respond({ success: true });
     }
     if (msg.type === "SETTINGS_UPDATED") {
-      window.reloadDetectorSettings?.();
       removeHighlights();
       reset();
       respond({ success: true });

@@ -12,9 +12,7 @@ const modelError = $("modelError");
 const keyInput = $("ollamaApiKey");
 const refreshBtn = $("refreshModels");
 const saveBtn = $("saveBtn");
-const openrouterInput = $("openrouterApiKey");
-const jevLowInput = $("jevLow");
-const jevHighInput = $("jevHigh");
+const jevKeyInput = $("jevApiKey");
 const jevStats = $("jevStats");
 const copyLogBtn = $("copyLog");
 
@@ -78,16 +76,15 @@ async function fetchModels() {
   }
 }
 
-// Share of Jev-scored posts that reached Ollama under the current cut-offs,
-// the number to watch against the ~10% budget.
+// Share of your feed flagged AI: the number to compare with the ~2% of real
+// authors the cut-offs were fitted to flag.
 async function showJevStats() {
   const { jevLog = [] } = await api.storage.local.get(["jevLog"]);
-  const scored = jevLog.filter((e) => e.p != null);
+  const scored = jevLog.filter((e) => e.s != null);
   if (!scored.length) return;
-  const low = parseFloat(jevLowInput.value);
-  const high = parseFloat(jevHighInput.value);
-  const mid = scored.filter((e) => e.p >= low && e.p < high).length;
-  jevStats.textContent = `${scored.length} posts scored · ${Math.round((mid / scored.length) * 100)}% go to Ollama`;
+  const ai = scored.filter((e) => e.v === "LIKELY_AI" || e.v === "DEFINITELY_AI").length;
+  const bait = scored.filter((e) => e.b).length;
+  jevStats.textContent = `${scored.length} posts · ${Math.round((ai / scored.length) * 100)}% flagged AI · ${Math.round((bait / scored.length) * 100)}% bait`;
 }
 
 async function copyLog() {
@@ -97,25 +94,17 @@ async function copyLog() {
   setTimeout(() => (copyLogBtn.textContent = "Copy log"), 1500);
 }
 
-function readCutoffs() {
-  const low = parseFloat(jevLowInput.value);
-  const high = parseFloat(jevHighInput.value);
-  const valid = low >= 0 && high <= 1 && low <= high;
-  return valid ? { jevLow: low, jevHigh: high } : { jevLow: window.JEV_LOW, jevHigh: window.JEV_HIGH };
-}
-
 async function saveSettings() {
   const settings = {
     enabled: toggle.checked,
     ollamaUrl: urlInput.value || DEFAULT_URL,
     model: modelSelect.value,
     ollamaApiKey: keyInput.value.trim(),
-    openrouterApiKey: openrouterInput.value.trim(),
-    ...readCutoffs(),
+    jevApiKey: jevKeyInput.value.trim(),
   };
   await api.storage.local.set(settings);
-  jevLowInput.value = settings.jevLow;
-  jevHighInput.value = settings.jevHigh;
+  // Settings the Jev-only detector no longer reads
+  await api.storage.local.remove(["openrouterApiKey", "jevLow", "jevHigh"]);
   showJevStats();
 
   try {
@@ -140,12 +129,10 @@ async function sendToggle(enabled) {
 }
 
 async function init() {
-  const saved = await api.storage.local.get(["enabled", "ollamaUrl", "model", "ollamaApiKey", "openrouterApiKey", "jevLow", "jevHigh"]);
+  const saved = await api.storage.local.get(["enabled", "ollamaUrl", "model", "ollamaApiKey", "jevApiKey", "openrouterApiKey"]);
   urlInput.value = saved.ollamaUrl || DEFAULT_URL;
   keyInput.value = saved.ollamaApiKey || "";
-  openrouterInput.value = saved.openrouterApiKey || "";
-  jevLowInput.value = saved.jevLow ?? window.JEV_LOW;
-  jevHighInput.value = saved.jevHigh ?? window.JEV_HIGH;
+  jevKeyInput.value = saved.jevApiKey || saved.openrouterApiKey || "";
   showJevStats();
   updateStatus(saved.enabled !== false);
 
@@ -162,8 +149,6 @@ async function init() {
   refreshBtn.addEventListener("click", fetchModels);
   saveBtn.addEventListener("click", saveSettings);
   copyLogBtn.addEventListener("click", copyLog);
-  jevLowInput.addEventListener("input", showJevStats);
-  jevHighInput.addEventListener("input", showJevStats);
   urlInput.addEventListener("blur", fetchModels);
 }
 
